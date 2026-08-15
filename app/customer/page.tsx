@@ -90,7 +90,7 @@ export default async function CustomerPage() {
 
   return (
     <div data-app-shell="customer" className="min-h-screen bg-[#f5f5f2] text-black">
-      <header className="border-b border-[#deded9] bg-white">
+      <header className="fixed inset-x-0 top-0 z-40 border-b border-[#deded9] bg-white">
         <div className="mx-auto flex h-16 max-w-[1120px] items-center justify-between px-5 sm:h-20 sm:px-7">
           <div className="flex items-center gap-3">
             <span className="grid size-9 place-items-center bg-[#ff4800] text-xs font-bold text-white">SW8</span>
@@ -105,7 +105,7 @@ export default async function CustomerPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1120px] px-5 py-7 sm:px-7 sm:py-10">
+      <main className="mx-auto max-w-[1120px] px-5 pb-7 pt-24 sm:px-7 sm:pb-10 sm:pt-28">
         <div>
           <p className="text-sm font-semibold text-[#008d44]">Welcome back</p>
           <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">{fullName}</h1>

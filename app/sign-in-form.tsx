@@ -18,6 +18,7 @@ export function SignInForm({ accountType }: SignInFormProps) {
   const action = isCustomer ? customerSignIn : adminSignIn;
   const initialState: SignInState = { error: "" };
   const [state, formAction, pending] = useActionState(action, initialState);
+  const hasError = Boolean(state.error);
 
   return (
     <form action={formAction} className="space-y-5">
@@ -33,7 +34,9 @@ export function SignInForm({ accountType }: SignInFormProps) {
           autoComplete={isCustomer ? "tel" : "email"}
           placeholder={isCustomer ? "0705 814 9297" : "admin@sw8kitchen.com"}
           required
-          className="h-12 w-full border border-[#c9c9c3] bg-white px-4 text-base text-black outline-none transition placeholder:text-[#a5a59f] focus:border-[#ff4800] focus:ring-2 focus:ring-[#ff4800]/15"
+          aria-invalid={hasError}
+          aria-describedby={hasError ? "sign-in-error" : undefined}
+          className={`h-12 w-full rounded-md border bg-white px-4 text-base text-black outline-none transition placeholder:text-[#a5a59f] focus:ring-2 focus:ring-[#ff4800]/15 ${hasError ? "border-[#d52f1f] focus:border-[#d52f1f]" : "border-[#c9c9c3] focus:border-[#ff4800]"}`}
         />
       </div>
 
@@ -48,14 +51,16 @@ export function SignInForm({ accountType }: SignInFormProps) {
           autoComplete="current-password"
           placeholder={isCustomer ? "Enter your surname" : "Enter your password"}
           required
-          className="h-12 w-full border border-[#c9c9c3] bg-white px-4 text-base text-black outline-none transition placeholder:text-[#a5a59f] focus:border-[#ff4800] focus:ring-2 focus:ring-[#ff4800]/15"
+          aria-invalid={hasError}
+          aria-describedby={hasError ? "sign-in-error" : undefined}
+          className={`h-12 w-full rounded-md border bg-white px-4 text-base text-black outline-none transition placeholder:text-[#a5a59f] focus:ring-2 focus:ring-[#ff4800]/15 ${hasError ? "border-[#d52f1f] focus:border-[#d52f1f]" : "border-[#c9c9c3] focus:border-[#ff4800]"}`}
         />
       </div>
 
       {state.error ? (
-        <p role="alert" className="border-l-4 border-[#ff4800] bg-[#fff1eb] px-4 py-3 text-sm text-[#7c2b0c]">
+        <span id="sign-in-error" role="alert" className="block text-sm font-medium text-[#d52f1f]">
           {state.error}
-        </p>
+        </span>
       ) : null}
 
       <button
