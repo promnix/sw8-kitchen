@@ -31,3 +31,32 @@ input {
 button {
   cursor: pointer;
 }
+
+.premium-panel {
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.premium-panel:hover {
+  transform: translateY(-3px);
+  border-color: #bdbdb6;
+  box-shadow: 0 16px 34px rgb(0 0 0 / 8%);
+}
+
+.reward-stage {
+  box-shadow: 0 22px 50px rgb(0 0 0 / 16%);
+}
+
+.gift-dangle {
+  transform-origin: top center;
+  animation: gift-dangle 2.8s ease-in-out infinite;
+}
+
+@keyframes gift-dangle {
+  0%, 100% { transform: rotate(-2deg); }
+  50% { transform: rotate(3deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gift-dangle { animation: none; }
+  .premium-panel { transition: none; }
+}

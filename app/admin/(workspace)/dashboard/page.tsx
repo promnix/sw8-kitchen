@@ -97,7 +97,7 @@ export default async function AdminDashboardPage() {
           {metrics.map((metric) => (
             <article
               key={metric.label}
-              className={`border border-[#deded9] border-t-4 ${metric.color} bg-white p-5`}
+              className={`premium-panel border border-[#deded9] border-t-4 ${metric.color} bg-white p-5`}
             >
               <p className="text-sm font-medium text-[#666660]">{metric.label}</p>
               <p className="mt-4 text-3xl font-semibold text-black">{metric.value}</p>
@@ -137,7 +137,7 @@ export default async function AdminDashboardPage() {
                 </thead>
                 <tbody>
                   {recentCustomers.map((customer) => (
-                    <tr key={customer.id} className="border-b border-[#eeeeea] last:border-0">
+                    <tr key={customer.id} className="border-b border-[#eeeeea] transition-colors hover:bg-[#fff8f4] last:border-0">
                       <td className="px-6 py-4">
                         <p className="text-sm font-semibold text-black">{customerName(customer)}</p>
                         <p className="mt-1 text-xs text-[#8a8a84]">Customer profile</p>

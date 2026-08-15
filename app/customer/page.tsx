@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { Gift, ReceiptText, Sparkles, WalletCards } from "lucide-react";
 import { signOut } from "../actions/auth";
 import { createClient } from "@/lib/supabase/server";
 
@@ -46,7 +47,7 @@ export default async function CustomerPage() {
         .eq("customer_id", customer.id),
       supabase
         .from("loyalty_cycles")
-        .select("cycle_number, accumulated_amount, status")
+        .select("cycle_number, accumulated_amount, target_amount, status")
         .eq("customer_id", customer.id)
         .order("cycle_number", { ascending: false })
         .limit(1)
@@ -81,6 +82,11 @@ export default async function CustomerPage() {
   const hasUnlockedGift = availableRewards.some(
     (reward) => reward.reward_type === "loyalty_meal",
   );
+  const journeyProgress = hasUnlockedGift
+    ? 100
+    : cycle
+      ? Math.max(6, Math.min(94, Math.round((cycle.accumulated_amount / cycle.target_amount) * 100)))
+      : 6;
 
   return (
     <div className="min-h-screen bg-[#f5f5f2] text-black">
@@ -106,23 +112,45 @@ export default async function CustomerPage() {
           <p className="mt-2 text-sm text-[#686864]">{customer.phone}</p>
         </div>
 
-        <section className={`mt-7 border-l-4 px-5 py-5 sm:flex sm:items-center sm:justify-between sm:gap-6 ${hasUnlockedGift ? "border-[#008d44] bg-[#e9f7ef]" : "border-[#ffb132] bg-[#fff8e8]"}`}>
-          <div>
-            <p className="text-xs font-semibold uppercase text-[#686864]">Gift status</p>
-            <h2 className="mt-2 text-xl font-semibold">
-              {hasUnlockedGift ? "Your meal gift is ready" : "Your next gift is awaiting unlock"}
-            </h2>
-            <p className="mt-2 text-sm text-[#686864]">
-              {hasUnlockedGift ? "Ask an attendant to include it with your next purchase." : "Your purchases are being added automatically."}
-            </p>
+        <section className="reward-stage mt-7 overflow-hidden bg-black px-5 py-6 text-white sm:px-8 sm:py-8">
+          <div className="flex items-start justify-between gap-6">
+            <div>
+              <div className="flex items-center gap-2 text-[#ffb132]">
+                <Sparkles className="size-4" />
+                <p className="text-xs font-semibold uppercase">Your reward journey</p>
+              </div>
+              <h2 className="mt-3 max-w-xl text-2xl font-semibold leading-tight sm:text-3xl">
+                {hasUnlockedGift ? "You made it. Your next meal gift is ready." : "Every visit moves your gift a little closer."}
+              </h2>
+              <p className="mt-3 text-sm leading-6 text-white/60">
+                {hasUnlockedGift ? "Ask an attendant to include it with your next purchase." : `${naira(cycle?.accumulated_amount ?? 0)} collected on this journey so far.`}
+              </p>
+            </div>
+            {hasUnlockedGift ? <p className="hidden shrink-0 text-right text-sm font-semibold text-[#7ce5a8] sm:block">Gift value<br /><span className="text-2xl">{naira(500000)}</span></p> : null}
           </div>
-          {hasUnlockedGift ? <p className="mt-4 text-2xl font-semibold text-[#006b34] sm:mt-0">Up to {naira(500000)}</p> : null}
+
+          <div className="relative mt-10 pb-2 pt-8">
+            <div className="absolute inset-x-0 top-10 h-1 bg-white/15" />
+            <div className="absolute left-0 top-10 h-1 bg-[#ff4800] transition-[width] duration-700" style={{ width: `${journeyProgress}%` }} />
+            <div className="absolute left-0 top-[34px] size-4 border-4 border-black bg-[#ff4800]" />
+            <div className="absolute top-[31px] size-5 -translate-x-1/2 border-4 border-black bg-[#ffb132] transition-[left] duration-700" style={{ left: `${journeyProgress}%` }} />
+            <div className="gift-dangle absolute right-0 top-0 flex flex-col items-center">
+              <span className="h-5 w-px bg-white/40" />
+              <span className={`grid size-12 place-items-center border ${hasUnlockedGift ? "border-[#7ce5a8] bg-[#008d44] text-white" : "border-white/20 bg-[#181818] text-[#ffb132]"}`}>
+                <Gift className="size-6" />
+              </span>
+            </div>
+            <div className="flex justify-between pt-8 text-[11px] font-semibold uppercase text-white/45">
+              <span>Journey started</span>
+              <span>{hasUnlockedGift ? "Gift unlocked" : "Gift ahead"}</span>
+            </div>
+          </div>
         </section>
 
         <section className="mt-6 grid gap-4 sm:grid-cols-3" aria-label="Account summary">
-          <Summary label="Purchase progress" value={naira(cycle?.accumulated_amount ?? 0)} note="Current reward journey" color="border-[#ff4800]" />
-          <Summary label="Available credit" value={naira(creditBalance)} note="Change left with SW8 Kitchen" color="border-[#ffb132]" />
-          <Summary label="Available rewards" value={String(availableRewards.length)} note="Ready for your next purchase" color="border-[#008d44]" />
+          <Summary icon={<ReceiptText className="size-5" />} label="Purchase progress" value={naira(cycle?.accumulated_amount ?? 0)} note="Current reward journey" color="border-[#ff4800]" />
+          <Summary icon={<WalletCards className="size-5" />} label="Available credit" value={naira(creditBalance)} note="Change left with SW8 Kitchen" color="border-[#ffb132]" />
+          <Summary icon={<Gift className="size-5" />} label="Available rewards" value={String(availableRewards.length)} note="Ready for your next purchase" color="border-[#008d44]" />
         </section>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
@@ -201,10 +229,10 @@ export default async function CustomerPage() {
   );
 }
 
-function Summary({ label, value, note, color }: { label: string; value: string; note: string; color: string }) {
+function Summary({ icon, label, value, note, color }: { icon: React.ReactNode; label: string; value: string; note: string; color: string }) {
   return (
-    <article className={`border border-[#deded9] border-t-4 ${color} bg-white p-5`}>
-      <p className="text-sm font-medium text-[#686864]">{label}</p>
+    <article className={`premium-panel border border-[#deded9] border-t-4 ${color} bg-white p-5`}>
+      <div className="flex items-center justify-between"><p className="text-sm font-medium text-[#686864]">{label}</p><span className="text-black">{icon}</span></div>
       <p className="mt-4 text-2xl font-semibold">{value}</p>
       <p className="mt-2 text-xs text-[#8a8a84]">{note}</p>
     </article>
