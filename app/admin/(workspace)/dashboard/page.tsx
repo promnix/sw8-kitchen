@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { Gift, Network, ShoppingBag, Users } from "lucide-react";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-NG", {
@@ -49,24 +50,28 @@ export default async function AdminDashboardPage() {
       value: customersResult.count ?? 0,
       note: "Registered profiles",
       color: "border-[#ff4800]",
+      icon: Users,
     },
     {
       label: "Purchases recorded",
       value: purchasesResult.count ?? 0,
       note: "Completed purchases",
       color: "border-black",
+      icon: ShoppingBag,
     },
     {
       label: "Available rewards",
       value: rewardsResult.count ?? 0,
       note: "Waiting for redemption",
       color: "border-[#008d44]",
+      icon: Gift,
     },
     {
       label: "Open referrals",
       value: referralsResult.count ?? 0,
       note: "Progressing or qualified",
       color: "border-[#ffb132]",
+      icon: Network,
     },
   ];
 
@@ -75,15 +80,16 @@ export default async function AdminDashboardPage() {
   return (
     <main className="px-5 py-7 sm:px-7 sm:py-9 xl:px-10">
       <div className="mx-auto max-w-[1280px]">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <section className="relative overflow-hidden rounded-lg bg-black px-6 py-7 text-white sm:flex sm:items-end sm:justify-between sm:gap-8 sm:px-8 sm:py-8">
+          <span className="absolute inset-y-0 left-0 w-1.5 bg-[#ff4800]" />
           <div>
-            <p className="text-sm font-semibold text-[#ff4800]">Overview</p>
+            <p className="text-sm font-semibold text-[#ffb132]">Overview</p>
             <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Admin dashboard</h1>
-            <p className="mt-2 text-sm text-[#686864]">
+            <p className="mt-2 text-sm text-white/55">
               Customer activity and reward status across SW8 Kitchen.
             </p>
           </div>
-          <p className="text-xs font-medium text-[#777771]">
+          <p className="mt-5 text-xs font-medium text-white/50 sm:mt-0 sm:text-right">
             {new Intl.DateTimeFormat("en-NG", {
               weekday: "long",
               day: "numeric",
@@ -91,22 +97,27 @@ export default async function AdminDashboardPage() {
               year: "numeric",
             }).format(new Date())}
           </p>
-        </div>
+        </section>
 
         <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Summary">
           {metrics.map((metric) => (
             <article
               key={metric.label}
-              className={`premium-panel border border-[#deded9] border-t-4 ${metric.color} bg-white p-5`}
+              className={`premium-panel rounded-lg border border-[#deded9] border-t-4 ${metric.color} bg-white p-5`}
             >
-              <p className="text-sm font-medium text-[#666660]">{metric.label}</p>
+              <div className="flex items-start justify-between gap-4">
+                <p className="text-sm font-medium text-[#666660]">{metric.label}</p>
+                <span className="grid size-9 place-items-center rounded-md bg-[#f5f5f2] text-black">
+                  <metric.icon className="size-4" />
+                </span>
+              </div>
               <p className="mt-4 text-3xl font-semibold text-black">{metric.value}</p>
               <p className="mt-2 text-xs text-[#8a8a84]">{metric.note}</p>
             </article>
           ))}
         </section>
 
-        <section className="mt-7 border border-[#deded9] bg-white">
+        <section className="mt-7 rounded-lg border border-[#deded9] bg-white shadow-[0_10px_30px_rgb(0_0_0_/_4%)]">
           <div className="flex items-center justify-between border-b border-[#e4e4df] px-5 py-4 sm:px-6">
             <div>
               <h2 className="text-base font-semibold">Recent customers</h2>

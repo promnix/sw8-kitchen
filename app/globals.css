@@ -34,6 +34,7 @@ button {
 
 .premium-panel {
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+  border-radius: 8px;
 }
 
 .premium-panel:hover {
@@ -44,6 +45,19 @@ button {
 
 .reward-stage {
   box-shadow: 0 22px 50px rgb(0 0 0 / 16%);
+}
+
+[data-app-shell] main .border.bg-white,
+[data-app-shell] main section.border {
+  border-radius: 8px;
+}
+
+[data-app-shell] input,
+[data-app-shell] textarea,
+[data-app-shell] select,
+[data-app-shell] button,
+[data-app-shell] a[class*="border"] {
+  border-radius: 6px;
 }
 
 .gift-dangle {

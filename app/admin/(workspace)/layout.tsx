@@ -36,7 +36,7 @@ export default async function AdminWorkspaceLayout({
     .toUpperCase();
 
   return (
-    <div className="min-h-screen bg-[#f5f5f2] text-black">
+    <div data-app-shell="admin" className="min-h-screen bg-[#f5f5f2] text-black">
       <aside className="fixed inset-y-0 left-0 hidden h-dvh w-[240px] border-r border-[#2b2b2b] bg-black text-white lg:flex lg:flex-col">
         <div className="flex h-20 items-center gap-3 border-b border-white/15 px-6">
           <div className="grid size-9 place-items-center bg-[#ff4800] text-xs font-bold">

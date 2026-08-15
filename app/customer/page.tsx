@@ -89,7 +89,7 @@ export default async function CustomerPage() {
       : 6;
 
   return (
-    <div className="min-h-screen bg-[#f5f5f2] text-black">
+    <div data-app-shell="customer" className="min-h-screen bg-[#f5f5f2] text-black">
       <header className="border-b border-[#deded9] bg-white">
         <div className="mx-auto flex h-16 max-w-[1120px] items-center justify-between px-5 sm:h-20 sm:px-7">
           <div className="flex items-center gap-3">
@@ -112,7 +112,7 @@ export default async function CustomerPage() {
           <p className="mt-2 text-sm text-[#686864]">{customer.phone}</p>
         </div>
 
-        <section className="reward-stage mt-7 overflow-hidden bg-black px-5 py-6 text-white sm:px-8 sm:py-8">
+        <section className="reward-stage mt-7 overflow-hidden rounded-lg bg-black px-5 py-6 text-white sm:px-8 sm:py-8">
           <div className="flex items-start justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 text-[#ffb132]">
@@ -155,7 +155,7 @@ export default async function CustomerPage() {
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
           <div className="space-y-6">
-            <section className="border border-[#deded9] bg-white">
+            <section className="rounded-lg border border-[#deded9] bg-white shadow-[0_10px_30px_rgb(0_0_0_/_4%)]">
               <SectionTitle>Recent purchases</SectionTitle>
               {purchases.length === 0 ? (
                 <Empty>No purchases recorded yet.</Empty>
@@ -177,7 +177,7 @@ export default async function CustomerPage() {
               )}
             </section>
 
-            <section className="border border-[#deded9] bg-white">
+            <section className="rounded-lg border border-[#deded9] bg-white shadow-[0_10px_30px_rgb(0_0_0_/_4%)]">
               <SectionTitle>Reward history</SectionTitle>
               {rewards.length === 0 ? (
                 <Empty>No rewards earned yet.</Empty>
@@ -201,7 +201,7 @@ export default async function CustomerPage() {
           </div>
 
           <div className="space-y-6">
-            <section className="border border-[#deded9] bg-white">
+            <section className="rounded-lg border border-[#deded9] bg-white shadow-[0_10px_30px_rgb(0_0_0_/_4%)]">
               <SectionTitle>Referral code</SectionTitle>
               <div className="p-5">
                 <p className="font-mono text-2xl font-semibold text-[#b83500]">{customer.referral_code}</p>
@@ -212,7 +212,7 @@ export default async function CustomerPage() {
               </div>
             </section>
 
-            <section className="border border-[#deded9] bg-white">
+            <section className="rounded-lg border border-[#deded9] bg-white shadow-[0_10px_30px_rgb(0_0_0_/_4%)]">
               <SectionTitle>Profile details</SectionTitle>
               <dl className="divide-y divide-[#eeeeea] px-5">
                 <Detail label="Phone" value={customer.phone} />
@@ -231,7 +231,7 @@ export default async function CustomerPage() {
 
 function Summary({ icon, label, value, note, color }: { icon: React.ReactNode; label: string; value: string; note: string; color: string }) {
   return (
-    <article className={`premium-panel border border-[#deded9] border-t-4 ${color} bg-white p-5`}>
+    <article className={`premium-panel rounded-lg border border-[#deded9] border-t-4 ${color} bg-white p-5`}>
       <div className="flex items-center justify-between"><p className="text-sm font-medium text-[#686864]">{label}</p><span className="text-black">{icon}</span></div>
       <p className="mt-4 text-2xl font-semibold">{value}</p>
       <p className="mt-2 text-xs text-[#8a8a84]">{note}</p>
