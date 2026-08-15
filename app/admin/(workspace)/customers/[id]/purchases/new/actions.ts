@@ -1,0 +1,50 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+
+export type RecordPurchaseState = { error: string };
+
+function toKobo(value: FormDataEntryValue | null) {
+  const normalized = String(value ?? "").replace(/,/g, "").trim();
+  const amount = Number(normalized);
+  return Number.isFinite(amount) && amount >= 0 ? Math.round(amount * 100) : null;
+}
+
+export async function recordPurchase(
+  customerId: string,
+  _state: RecordPurchaseState,
+  formData: FormData,
+): Promise<RecordPurchaseState> {
+  const subtotal = toKobo(formData.get("subtotal"));
+  const creditUsed = toKobo(formData.get("creditUsed"));
+  const changeLeft = toKobo(formData.get("changeLeft"));
+  const rewardId = String(formData.get("rewardId") ?? "").trim() || null;
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+
+  if (!subtotal || subtotal <= 0) return { error: "Enter a purchase amount greater than zero." };
+  if (creditUsed === null) return { error: "Enter a valid credit amount." };
+  if (changeLeft === null) return { error: "Enter a valid amount for change left behind." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("record_customer_purchase", {
+    p_customer_id: customerId,
+    p_subtotal_amount: subtotal,
+    p_credit_used_amount: creditUsed,
+    p_change_left_amount: changeLeft,
+    p_reward_id: rewardId,
+    p_notes: notes,
+  });
+
+  if (error) {
+    if (error.message.includes("Could not find the function")) {
+      return { error: "Run database-update-001-purchases.sql in Supabase before recording purchases." };
+    }
+    return { error: error.message };
+  }
+
+  revalidatePath(`/admin/customers/${customerId}`);
+  revalidatePath("/admin/dashboard");
+  redirect(`/admin/customers/${customerId}?purchase=created`);
+}

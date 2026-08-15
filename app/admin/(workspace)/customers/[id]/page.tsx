@@ -1,0 +1,281 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+
+function naira(value: number) {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    maximumFractionDigits: 0,
+  }).format(value / 100);
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en-NG", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+export default async function CustomerProfilePage({
+  params,
+  searchParams,
+}: PageProps<"/admin/customers/[id]">) {
+  const { id } = await params;
+  const { purchase, updated, credit } = await searchParams;
+  const supabase = await createClient();
+  const { data: customer } = await supabase
+    .from("customers")
+    .select("id, first_name, surname, other_names, phone, email, address, date_of_birth, referral_code, status, created_at")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (!customer) notFound();
+
+  const [purchasesResult, creditsResult, cycleResult, rewardsResult, referralsResult] =
+    await Promise.all([
+      supabase
+        .from("purchases")
+        .select("id, reference, subtotal_amount, loyalty_eligible_amount, purchased_at, status")
+        .eq("customer_id", id)
+        .order("purchased_at", { ascending: false }),
+      supabase
+        .from("credit_transactions")
+        .select("amount, transaction_type")
+        .eq("customer_id", id),
+      supabase
+        .from("loyalty_cycles")
+        .select("cycle_number, target_amount, accumulated_amount, status")
+        .eq("customer_id", id)
+        .order("cycle_number", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("rewards")
+        .select("id, reward_type, status, maximum_value, unlocked_at, redeemed_at")
+        .eq("customer_id", id)
+        .order("unlocked_at", { ascending: false }),
+      supabase
+        .from("referrals")
+        .select("id, status, accumulated_amount, qualifying_target_amount, created_at")
+        .eq("referrer_customer_id", id)
+        .order("created_at", { ascending: false }),
+    ]);
+
+  const purchases = purchasesResult.data ?? [];
+  const credits = creditsResult.data ?? [];
+  const cycle = cycleResult.data;
+  const rewards = rewardsResult.data ?? [];
+  const referrals = referralsResult.data ?? [];
+
+  const totalSpent = purchases
+    .filter((purchase) => purchase.status === "completed")
+    .reduce((total, purchase) => total + purchase.loyalty_eligible_amount, 0);
+  const creditBalance = credits.reduce((total, transaction) => {
+    const increase =
+      transaction.transaction_type === "deposit" ||
+      transaction.transaction_type === "adjustment_increase";
+    return total + (increase ? transaction.amount : -transaction.amount);
+  }, 0);
+  const progress = cycle
+    ? Math.min(100, Math.round((cycle.accumulated_amount / cycle.target_amount) * 100))
+    : 0;
+  const fullName = [customer.first_name, customer.other_names, customer.surname]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    <main className="px-5 py-7 sm:px-7 sm:py-9 xl:px-10">
+      <div className="mx-auto max-w-[1280px]">
+        <Link href="/admin/customers" className="text-sm font-semibold text-[#b83500] hover:text-black">
+          Back to customers
+        </Link>
+
+        <div className="mt-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+          <div>
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-semibold sm:text-3xl">{fullName}</h1>
+              <span className="bg-[#e9f7ef] px-2.5 py-1 text-xs font-semibold capitalize text-[#006b34]">
+                {customer.status}
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-[#686864]">{customer.phone}</p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="bg-[#fff0e9] px-3 py-2 font-mono text-xs font-semibold text-[#b83500]">
+              {customer.referral_code}
+            </span>
+            <Link
+              href={`/admin/customers/${id}/credit`}
+              className="inline-flex h-10 items-center border border-[#c9c9c3] bg-white px-4 text-sm font-semibold text-black hover:border-black"
+            >
+              Adjust credit
+            </Link>
+            <Link
+              href={`/admin/customers/${id}/edit`}
+              className="inline-flex h-10 items-center border border-[#c9c9c3] bg-white px-4 text-sm font-semibold text-black hover:border-black"
+            >
+              Edit profile
+            </Link>
+            <Link
+              href={`/admin/customers/${id}/purchases/new`}
+              className="inline-flex h-10 items-center bg-[#ff4800] px-4 text-sm font-semibold text-white hover:bg-[#df3e00]"
+            >
+              Record purchase
+            </Link>
+          </div>
+        </div>
+
+        {purchase === "created" ? (
+          <p role="status" className="mt-6 border-l-4 border-[#008d44] bg-[#e9f7ef] px-4 py-3 text-sm text-[#006b34]">
+            Purchase recorded and customer progress updated.
+          </p>
+        ) : null}
+
+        {updated === "1" ? (
+          <p role="status" className="mt-6 border-l-4 border-[#008d44] bg-[#e9f7ef] px-4 py-3 text-sm text-[#006b34]">
+            Customer profile updated successfully.
+          </p>
+        ) : null}
+
+        {credit === "updated" ? (
+          <p role="status" className="mt-6 border-l-4 border-[#008d44] bg-[#e9f7ef] px-4 py-3 text-sm text-[#006b34]">
+            Customer credit updated successfully.
+          </p>
+        ) : null}
+
+        <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Customer summary">
+          <Summary label="Total purchases" value={naira(totalSpent)} note={`${purchases.length} records`} color="border-black" />
+          <Summary label="Available credit" value={naira(creditBalance)} note="Change left behind" color="border-[#ffb132]" />
+          <Summary label="Available rewards" value={String(rewards.filter((reward) => reward.status === "available").length)} note="Ready for redemption" color="border-[#008d44]" />
+          <Summary label="Customers referred" value={String(referrals.length)} note={`${referrals.filter((referral) => referral.status === "rewarded").length} rewarded`} color="border-[#ff4800]" />
+        </section>
+
+        <div className="mt-7 grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.75fr)]">
+          <div className="space-y-6">
+            <section className="border border-[#deded9] bg-white">
+              <div className="border-b border-[#e5e5e0] px-5 py-4 sm:px-6">
+                <h2 className="text-base font-semibold">Loyalty progress</h2>
+              </div>
+              <div className="p-5 sm:p-6">
+                {cycle ? (
+                  <>
+                    <div className="flex items-end justify-between gap-4">
+                      <div>
+                        <p className="text-2xl font-semibold">{naira(cycle.accumulated_amount)}</p>
+                        <p className="mt-1 text-xs text-[#777771]">Cycle {cycle.cycle_number} progress</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold capitalize text-[#008d44]">
+                          {cycle.status.replaceAll("_", " ")}
+                        </p>
+                        <p className="mt-1 text-xs text-[#777771]">Target {naira(cycle.target_amount)}</p>
+                      </div>
+                    </div>
+                    <div className="mt-5 h-3 w-full bg-[#ecece7]">
+                      <div className="h-full bg-[#ff4800]" style={{ width: `${progress}%` }} />
+                    </div>
+                    <p className="mt-2 text-right text-xs font-semibold text-[#686864]">{progress}%</p>
+                  </>
+                ) : (
+                  <p className="text-sm text-[#777771]">No active loyalty cycle.</p>
+                )}
+              </div>
+            </section>
+
+            <section className="border border-[#deded9] bg-white">
+              <div className="border-b border-[#e5e5e0] px-5 py-4 sm:px-6">
+                <h2 className="text-base font-semibold">Purchase history</h2>
+              </div>
+              {purchases.length === 0 ? (
+                <p className="px-6 py-12 text-center text-sm text-[#777771]">No purchases recorded yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[560px] border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-[#e8e8e3] bg-[#fafaf8] text-xs font-semibold text-[#686864]">
+                        <th className="px-6 py-3">Reference</th>
+                        <th className="px-4 py-3">Date</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-6 py-3 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {purchases.slice(0, 10).map((purchase) => (
+                        <tr key={purchase.id} className="border-b border-[#eeeeea] last:border-0">
+                          <td className="px-6 py-4 font-mono text-xs font-semibold">{purchase.reference}</td>
+                          <td className="px-4 py-4 text-sm text-[#686864]">{formatDate(purchase.purchased_at)}</td>
+                          <td className="px-4 py-4 text-sm capitalize">{purchase.status}</td>
+                          <td className="px-6 py-4 text-right text-sm font-semibold">{naira(purchase.subtotal_amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+
+          <div className="space-y-6">
+            <section className="border border-[#deded9] bg-white">
+              <div className="border-b border-[#e5e5e0] px-5 py-4">
+                <h2 className="text-base font-semibold">Customer details</h2>
+              </div>
+              <dl className="divide-y divide-[#eeeeea] px-5">
+                <Detail label="Phone" value={customer.phone} />
+                <Detail label="Email" value={customer.email ?? "Not added"} />
+                <Detail label="Date of birth" value={customer.date_of_birth ? formatDate(customer.date_of_birth) : "Not added"} />
+                <Detail label="Address" value={customer.address} />
+                <Detail label="Joined" value={formatDate(customer.created_at)} />
+              </dl>
+            </section>
+
+            <section className="border border-[#deded9] bg-white">
+              <div className="border-b border-[#e5e5e0] px-5 py-4">
+                <h2 className="text-base font-semibold">Rewards</h2>
+              </div>
+              {rewards.length === 0 ? (
+                <p className="px-5 py-8 text-sm text-[#777771]">No rewards earned yet.</p>
+              ) : (
+                <div className="divide-y divide-[#eeeeea]">
+                  {rewards.slice(0, 5).map((reward) => (
+                    <div key={reward.id} className="flex items-center justify-between gap-4 px-5 py-4">
+                      <div>
+                        <p className="text-sm font-semibold capitalize">{reward.reward_type.replaceAll("_", " ")}</p>
+                        <p className="mt-1 text-xs text-[#777771]">{formatDate(reward.unlocked_at)}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold">{naira(reward.maximum_value)}</p>
+                        <p className="mt-1 text-xs capitalize text-[#008d44]">{reward.status}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function Summary({ label, value, note, color }: { label: string; value: string; note: string; color: string }) {
+  return (
+    <article className={`border border-[#deded9] border-t-4 ${color} bg-white p-5`}>
+      <p className="text-sm font-medium text-[#666660]">{label}</p>
+      <p className="mt-4 text-2xl font-semibold text-black">{value}</p>
+      <p className="mt-2 text-xs text-[#8a8a84]">{note}</p>
+    </article>
+  );
+}
+
+function Detail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="py-4">
+      <dt className="text-xs font-medium text-[#777771]">{label}</dt>
+      <dd className="mt-1 text-sm leading-6 text-black">{value}</dd>
+    </div>
+  );
+}

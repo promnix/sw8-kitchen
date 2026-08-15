@@ -43,7 +43,7 @@ export default function Home() {
             </p>
           </div>
 
-          <SignInForm />
+          <SignInForm accountType="customer" />
 
           <p className="mt-8 border-t border-[#deded9] pt-5 text-center text-xs leading-5 text-[#777771]">
             Having trouble signing in? Visit an SW8 Kitchen attendant for help.

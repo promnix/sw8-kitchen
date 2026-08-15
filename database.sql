@@ -26,6 +26,8 @@ create type public.notification_status as enum ('pending', 'sent', 'failed', 'sk
 
 -- Every profile ID is the matching user ID in Supabase Auth (auth.users).
 -- Create Auth users from a trusted server endpoint using the Supabase service-role key.
+-- Customer Auth email convention: {phone}@customers.sw8.local.
+-- This keeps the customer's visible username as their Nigerian phone number without requiring SMS Auth.
 create table public.admin_profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   full_name varchar(150) not null,
