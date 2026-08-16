@@ -1,7 +1,30 @@
 import Image from "next/image";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { SignInForm } from "../sign-in-form";
 
-export default function AdminSignInPage() {
+export default async function AdminSignInPage() {
+  const supabase = await createClient();
+  const { data } = await supabase.auth.getUser();
+
+  if (data.user) {
+    const { data: admin } = await supabase
+      .from("admin_profiles")
+      .select("id")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
+    if (admin) redirect("/admin/dashboard");
+
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("id", data.user.id)
+      .maybeSingle();
+
+    if (customer) redirect("/customer");
+  }
+
   return (
     <main className="min-h-screen bg-[#f7f7f5] lg:grid lg:grid-cols-[minmax(320px,0.82fr)_1.18fr]">
       <section className="flex min-h-[250px] flex-col justify-between bg-black px-6 py-7 text-white sm:px-10 sm:py-9 lg:min-h-screen lg:px-14 lg:py-12">
