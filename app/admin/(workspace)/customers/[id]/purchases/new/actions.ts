@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { sendNotifications } from "@/lib/email/send-notifications";
+import { scheduleRewardNotifications } from "@/lib/email/schedule-reward-notifications";
 import { createClient } from "@/lib/supabase/server";
 
 export type RecordPurchaseState = { error: string };
@@ -53,13 +53,7 @@ export async function recordPurchase(
 
   const purchaseResult = data as { unlocked_reward_ids?: string[] } | null;
   const unlockedRewardIds = purchaseResult?.unlocked_reward_ids ?? [];
-  if (unlockedRewardIds.length > 0) {
-    await sendNotifications({
-      supabase,
-      statuses: ["pending"],
-      rewardIds: unlockedRewardIds,
-    });
-  }
+  scheduleRewardNotifications(unlockedRewardIds);
 
   revalidatePath(`/admin/customers/${customerId}`);
   revalidatePath("/admin/notifications");

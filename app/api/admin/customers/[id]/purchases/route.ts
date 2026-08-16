@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedAdmin } from "@/lib/api/auth";
-import { sendNotifications } from "@/lib/email/send-notifications";
+import { scheduleRewardNotifications } from "@/lib/email/schedule-reward-notifications";
 
 type PurchaseBody = {
   subtotalAmount?: number;
@@ -75,13 +75,7 @@ export async function POST(
 
   const purchaseResult = data as { unlocked_reward_ids?: string[] } | null;
   const unlockedRewardIds = purchaseResult?.unlocked_reward_ids ?? [];
-  const delivery = unlockedRewardIds.length > 0
-    ? await sendNotifications({
-        supabase,
-        statuses: ["pending"],
-        rewardIds: unlockedRewardIds,
-      })
-    : { processed: 0, sent: 0, failed: 0, skipped: 0 };
+  scheduleRewardNotifications(unlockedRewardIds);
 
-  return NextResponse.json({ data, delivery }, { status: 201 });
+  return NextResponse.json({ data }, { status: 201 });
 }
