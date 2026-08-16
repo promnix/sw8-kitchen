@@ -3,14 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { Bell, Gift, LayoutDashboard, LogOut, Network, Users } from "lucide-react";
 import { adminSignOut } from "../../actions/auth";
 
 export const adminNavItems = [
-  { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/customers", label: "Customers" },
-  { href: "/admin/referrals", label: "Referrals" },
-  { href: "/admin/rewards", label: "Rewards" },
-  { href: "/admin/notifications", label: "Notifications" },
+  { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/admin/customers", label: "Customers", icon: Users },
+  { href: "/admin/referrals", label: "Referrals", icon: Network },
+  { href: "/admin/rewards", label: "Rewards", icon: Gift },
+  { href: "/admin/notifications", label: "Notifications", icon: Bell },
 ];
 
 export function AdminNav() {
@@ -22,6 +23,7 @@ export function AdminNav() {
       <div className="mt-3 space-y-1">
         {adminNavItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const Icon = item.icon;
 
           return (
             <Link
@@ -33,6 +35,7 @@ export function AdminNav() {
                   : "border-transparent text-white/60 hover:bg-white/5 hover:text-white"
               }`}
             >
+              <Icon aria-hidden="true" className="mr-3 size-[18px] shrink-0" strokeWidth={1.8} />
               {item.label}
             </Link>
           );
@@ -113,7 +116,8 @@ export function MobileAdminNav() {
               <div className="mt-3 space-y-1">
                 {adminNavItems.map((item) => {
                   const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                  return <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className={`flex h-11 items-center border-l-4 px-3 text-sm font-semibold ${active ? "border-[#ff4800] bg-white/10 text-white" : "border-transparent text-white/60"}`}>{item.label}</Link>;
+                  const Icon = item.icon;
+                  return <Link key={item.href} href={item.href} onClick={() => setOpen(false)} className={`flex h-11 items-center border-l-4 px-3 text-sm font-semibold ${active ? "border-[#ff4800] bg-white/10 text-white" : "border-transparent text-white/60"}`}><Icon aria-hidden="true" className="mr-3 size-[18px] shrink-0" strokeWidth={1.8} />{item.label}</Link>;
                 })}
               </div>
             </nav>
@@ -123,6 +127,7 @@ export function MobileAdminNav() {
                   type="submit"
                   className="h-11 w-full border border-white/20 text-sm font-semibold text-white transition-colors hover:bg-white/10"
                 >
+                  <LogOut aria-hidden="true" className="mr-2 inline size-4 align-[-3px]" />
                   Sign out
                 </button>
               </form>
