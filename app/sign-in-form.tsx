@@ -42,14 +42,14 @@ export function SignInForm({ accountType }: SignInFormProps) {
 
       <div>
         <label htmlFor="password" className="mb-2 block text-sm font-medium text-[#282825]">
-          {isCustomer ? "Surname" : "Password"}
+          Password
         </label>
         <input
           id="password"
           name="password"
           type="password"
           autoComplete="current-password"
-          placeholder={isCustomer ? "Enter your surname" : "Enter your password"}
+          placeholder="Enter your password"
           required
           aria-invalid={hasError}
           aria-describedby={hasError ? "sign-in-error" : undefined}
