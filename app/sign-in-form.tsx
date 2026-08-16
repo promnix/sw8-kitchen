@@ -66,7 +66,7 @@ export function SignInForm({ accountType }: SignInFormProps) {
       <button
         type="submit"
         disabled={pending}
-        className="h-12 w-full bg-[#ff4800] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#df3e00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff4800] disabled:cursor-wait disabled:bg-[#bd5f39]"
+        className="h-12 w-full rounded-md bg-[#ff4800] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#df3e00] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff4800] disabled:cursor-wait disabled:bg-[#bd5f39]"
       >
         {pending ? "Signing in..." : "Sign in"}
       </button>
