@@ -1,7 +1,11 @@
 import { redirect } from "next/navigation";
-import { Gift, ReceiptText, Sparkles, WalletCards } from "lucide-react";
+import { Gift, Sparkles, WalletCards } from "lucide-react";
 import { signOut } from "../actions/auth";
 import { createClient } from "@/lib/supabase/server";
+import { Pagination } from "../admin/(workspace)/pagination";
+import { CopyReferralButton } from "./copy-referral-button";
+
+const PAGE_SIZE = 10;
 
 function naira(value: number) {
   return new Intl.NumberFormat("en-NG", {
@@ -19,7 +23,23 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-export default async function CustomerPage() {
+function formatPurchaseDate(value: string) {
+  const date = new Date(value);
+  const day = date.getDate();
+  const remainder = day % 100;
+  const suffix = remainder >= 11 && remainder <= 13 ? "th" : day % 10 === 1 ? "st" : day % 10 === 2 ? "nd" : day % 10 === 3 ? "rd" : "th";
+  const time = new Intl.DateTimeFormat("en-NG", { hour: "numeric", minute: "2-digit" }).format(date);
+  const rest = new Intl.DateTimeFormat("en-NG", { weekday: "long", month: "long", year: "numeric" }).formatToParts(date);
+  const weekday = rest.find((part) => part.type === "weekday")?.value;
+  const month = rest.find((part) => part.type === "month")?.value;
+  const year = rest.find((part) => part.type === "year")?.value;
+  return `${time}, ${weekday}, ${day}${suffix} ${month} ${year}`;
+}
+
+export default async function CustomerPage({ searchParams }: PageProps<"/customer">) {
+  const { purchasesPage, rewardsPage } = await searchParams;
+  const purchasePage = Math.max(1, Number(typeof purchasesPage === "string" ? purchasesPage : "1") || 1);
+  const rewardPage = Math.max(1, Number(typeof rewardsPage === "string" ? rewardsPage : "1") || 1);
   const supabase = await createClient();
   const { data: authData } = await supabase.auth.getUser();
 
@@ -33,14 +53,15 @@ export default async function CustomerPage() {
 
   if (!customer) redirect("/");
 
-  const [purchasesResult, creditsResult, rewardCreditsResult, cycleResult, rewardsResult, referralsResult] =
+  const [purchasesResult, creditsResult, rewardCreditsResult, cycleResult, rewardSummaryResult, rewardsResult, referralsResult] =
     await Promise.all([
       supabase
         .from("purchases")
-        .select("id, reference, subtotal_amount, reward_discount_amount, purchased_at, status")
+        .select("id, reference, reward_discount_amount, reward_credit_used_amount, purchased_at, status", { count: "exact" })
         .eq("customer_id", customer.id)
         .eq("status", "completed")
-        .order("purchased_at", { ascending: false }),
+        .order("purchased_at", { ascending: false })
+        .range((purchasePage - 1) * PAGE_SIZE, purchasePage * PAGE_SIZE - 1),
       supabase
         .from("credit_transactions")
         .select("amount, transaction_type")
@@ -58,9 +79,14 @@ export default async function CustomerPage() {
         .maybeSingle(),
       supabase
         .from("rewards")
+        .select("id, reward_type, status")
+        .eq("customer_id", customer.id),
+      supabase
+        .from("rewards")
         .select("id, reward_type, status, maximum_value, unlocked_at, redeemed_at")
         .eq("customer_id", customer.id)
-        .order("unlocked_at", { ascending: false }),
+        .order("unlocked_at", { ascending: false })
+        .range((rewardPage - 1) * PAGE_SIZE, rewardPage * PAGE_SIZE - 1),
       supabase
         .from("referrals")
         .select("id, status, created_at")
@@ -73,8 +99,9 @@ export default async function CustomerPage() {
   const rewardCredits = rewardCreditsResult.data ?? [];
   const cycle = cycleResult.data;
   const rewards = rewardsResult.data ?? [];
+  const rewardSummary = rewardSummaryResult.data ?? [];
   const referrals = referralsResult.data ?? [];
-  const availableRewards = rewards.filter((reward) => reward.status === "available");
+  const availableRewards = rewardSummary.filter((reward) => reward.status === "available");
   const creditBalance = credits.reduce((total, transaction) => {
     const increase =
       transaction.transaction_type === "deposit" ||
@@ -111,7 +138,7 @@ export default async function CustomerPage() {
             </div>
           </div>
           <form action={signOut}>
-            <button type="submit" className="text-sm font-semibold text-[#b83500] hover:text-black">Sign out</button>
+            <button type="submit" className="h-10 rounded-md bg-black px-4 text-sm font-semibold text-white transition-colors hover:bg-[#ff4800]">Sign out</button>
           </form>
         </div>
       </header>
@@ -134,10 +161,10 @@ export default async function CustomerPage() {
                 {hasUnlockedGift ? "You made it. Your next meal gift is ready." : "Every visit moves your gift a little closer."}
               </h2>
               <p className="mt-3 text-sm leading-6 text-white/60">
-                {hasUnlockedGift ? "Ask an attendant to include it with your next purchase." : `${naira(cycle?.accumulated_amount ?? 0)} collected on this journey so far.`}
+                {hasUnlockedGift ? "Ask an attendant to include it with your next purchase." : "Your progress continues quietly with every visit."}
               </p>
             </div>
-            {hasUnlockedGift ? <p className="hidden shrink-0 text-right text-sm font-semibold text-[#7ce5a8] sm:block">Gift value<br /><span className="text-2xl">{naira(500000)}</span></p> : null}
+            {hasUnlockedGift ? <p className="hidden shrink-0 text-right text-sm font-semibold text-[#7ce5a8] sm:block">Reward unlocked<br /><span className="text-xl text-white">Meals on the house</span></p> : null}
           </div>
 
           <div className="relative mt-10 pb-2 pt-8">
@@ -158,17 +185,16 @@ export default async function CustomerPage() {
           </div>
         </section>
 
-        <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Account summary">
-          <Summary icon={<ReceiptText className="size-5" />} label="Purchase progress" value={naira(cycle?.accumulated_amount ?? 0)} note="Current reward journey" color="border-[#ff4800]" />
+        <section className="mt-6 grid gap-4 sm:grid-cols-3" aria-label="Account summary">
           <Summary icon={<WalletCards className="size-5" />} label="Cash balance" value={naira(creditBalance)} note="Refundable change left" color="border-[#ffb132]" />
           <Summary icon={<Sparkles className="size-5" />} label="Reward balance" value={naira(rewardCreditBalance)} note="For purchases only" color="border-black" />
-          <Summary icon={<Gift className="size-5" />} label="Available rewards" value={String(availableRewards.length)} note="Ready for your next purchase" color="border-[#008d44]" />
+          <Summary icon={<Gift className="size-5" />} label="Available rewards" value={String(availableRewards.length)} note="Ready for your next purchase" color="border-[#ff4800]" />
         </section>
 
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
           <div className="space-y-6">
             <section className="rounded-lg border border-[#deded9] bg-white shadow-[0_10px_30px_rgb(0_0_0_/_4%)]">
-              <SectionTitle>Recent purchases</SectionTitle>
+              <SectionTitle>Visit history</SectionTitle>
               {purchases.length === 0 ? (
                 <Empty>No purchases recorded yet.</Empty>
               ) : (
@@ -177,16 +203,18 @@ export default async function CustomerPage() {
                     <div key={purchase.id} className="flex items-center justify-between gap-5 px-5 py-4 sm:px-6">
                       <div>
                         <p className="font-mono text-xs font-semibold">{purchase.reference}</p>
-                        <p className="mt-1 text-xs text-[#777771]">{formatDate(purchase.purchased_at)}</p>
+                        <p className="mt-1 text-xs text-[#777771]">{formatPurchaseDate(purchase.purchased_at)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-semibold">{naira(purchase.subtotal_amount)}</p>
-                        {purchase.reward_discount_amount > 0 ? <p className="mt-1 text-xs text-[#008d44]">Reward applied</p> : null}
+                        <p className={`text-xs font-semibold ${purchase.reward_discount_amount > 0 || purchase.reward_credit_used_amount > 0 ? "text-[#008d44]" : "text-[#777771]"}`}>
+                          {purchase.reward_discount_amount > 0 || purchase.reward_credit_used_amount > 0 ? "Reward applied" : "No reward applied"}
+                        </p>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+              <Pagination page={purchasePage} pageSize={PAGE_SIZE} total={purchasesResult.count ?? 0} pathname="/customer" pageKey="purchasesPage" query={{ rewardsPage: rewardPage > 1 ? rewardPage : undefined }} />
             </section>
 
             <section className="rounded-lg border border-[#deded9] bg-white shadow-[0_10px_30px_rgb(0_0_0_/_4%)]">
@@ -209,6 +237,7 @@ export default async function CustomerPage() {
                   ))}
                 </div>
               )}
+              <Pagination page={rewardPage} pageSize={PAGE_SIZE} total={rewardSummary.length} pathname="/customer" pageKey="rewardsPage" query={{ purchasesPage: purchasePage > 1 ? purchasePage : undefined }} />
             </section>
           </div>
 
@@ -216,7 +245,10 @@ export default async function CustomerPage() {
             <section className="rounded-lg border border-[#deded9] bg-white shadow-[0_10px_30px_rgb(0_0_0_/_4%)]">
               <SectionTitle>Referral code</SectionTitle>
               <div className="p-5">
-                <p className="font-mono text-2xl font-semibold text-[#b83500]">{customer.referral_code}</p>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="font-mono text-2xl font-semibold text-[#b83500]">{customer.referral_code}</p>
+                  <CopyReferralButton code={customer.referral_code} />
+                </div>
                 <div className="mt-5 grid grid-cols-2 gap-3 border-t border-[#eeeeea] pt-5">
                   <Stat value={referrals.length} label="People referred" />
                   <Stat value={referrals.filter((referral) => referral.status === "rewarded").length} label="Rewards earned" />
