@@ -1,11 +1,13 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { NewCustomerForm } from "../new-customer-form";
 
 export default function NewCustomerPage() {
   return (
     <main className="px-5 py-7 sm:px-7 sm:py-9 xl:px-10">
       <div className="mx-auto max-w-3xl">
-        <Link href="/admin/customers" className="text-sm font-semibold text-[#b83500] hover:text-black">
+        <Link href="/admin/customers" className="group inline-flex items-center gap-2 text-sm font-semibold text-[#b83500] hover:text-black">
+          <ArrowLeft aria-hidden="true" className="size-4 transition-transform duration-200 group-hover:-translate-x-1" />
           Back to customers
         </Link>
         <div className="mt-5">
