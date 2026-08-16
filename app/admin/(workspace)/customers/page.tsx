@@ -20,7 +20,7 @@ export default async function CustomersPage({
   const supabase = await createClient();
   const { data } = await supabase
     .from("customers")
-    .select("id, first_name, surname, other_names, phone, email, referral_code, status, created_at")
+    .select("id, first_name, surname, other_names, phone, email, address, referral_code, status, created_at")
     .order("created_at", { ascending: false })
     .limit(100);
 
@@ -75,13 +75,14 @@ export default async function CustomersPage({
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[850px] border-collapse text-left">
+              <table className="w-full min-w-[1050px] border-collapse text-left">
                 <thead>
                   <tr className="border-b border-[#e8e8e3] bg-[#fafaf8] text-xs font-semibold text-[#686864]">
                     <th className="px-6 py-3">Customer</th>
                     <th className="px-4 py-3">Phone</th>
                     <th className="px-4 py-3">Referral code</th>
                     <th className="px-4 py-3">Email</th>
+                    <th className="px-4 py-3">Address</th>
                     <th className="px-6 py-3 text-right">Status</th>
                   </tr>
                 </thead>
@@ -103,6 +104,9 @@ export default async function CustomersPage({
                         </span>
                       </td>
                       <td className="px-4 py-4 text-sm text-[#686864]">{customer.email ?? "-"}</td>
+                      <td className="max-w-[260px] px-4 py-4 text-sm text-[#686864]">
+                        <p className="truncate" title={customer.address}>{customer.address}</p>
+                      </td>
                       <td className="px-6 py-4 text-right">
                         <span className="rounded-md bg-[#e9f7ef] px-2.5 py-1 text-xs font-semibold capitalize text-[#006b34]">
                           {customer.status}
