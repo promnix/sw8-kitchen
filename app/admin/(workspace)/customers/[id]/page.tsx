@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 function naira(value: number) {
@@ -58,7 +59,7 @@ export default async function CustomerProfilePage({
         .order("unlocked_at", { ascending: false }),
       supabase
         .from("referrals")
-        .select("id, status, accumulated_amount, qualifying_target_amount, created_at")
+        .select("id, referred_customer_id, status, accumulated_amount, qualifying_target_amount, created_at")
         .eq("referrer_customer_id", id)
         .order("created_at", { ascending: false }),
     ]);
@@ -68,6 +69,16 @@ export default async function CustomerProfilePage({
   const cycle = cycleResult.data;
   const rewards = rewardsResult.data ?? [];
   const referrals = referralsResult.data ?? [];
+  const referredCustomerIds = referrals.map((referral) => referral.referred_customer_id);
+  const { data: referredCustomers } = referredCustomerIds.length
+    ? await supabase
+        .from("customers")
+        .select("id, first_name, surname, phone")
+        .in("id", referredCustomerIds)
+    : { data: [] };
+  const referredCustomerMap = new Map(
+    (referredCustomers ?? []).map((referredCustomer) => [referredCustomer.id, referredCustomer]),
+  );
 
   const totalSpent = purchases
     .filter((purchase) => purchase.status === "completed")
@@ -88,7 +99,8 @@ export default async function CustomerProfilePage({
   return (
     <main className="px-5 py-7 sm:px-7 sm:py-9 xl:px-10">
       <div className="mx-auto max-w-[1280px]">
-        <Link href="/admin/customers" className="text-sm font-semibold text-[#b83500] hover:text-black">
+        <Link href="/admin/customers" className="group inline-flex items-center gap-2 text-sm font-semibold text-[#b83500] hover:text-black">
+          <ArrowLeft aria-hidden="true" className="size-4 transition-transform duration-200 group-hover:-translate-x-1" />
           Back to customers
         </Link>
 
@@ -210,6 +222,81 @@ export default async function CustomerProfilePage({
                           <td className="px-6 py-4 text-right text-sm font-semibold">{naira(purchase.subtotal_amount)}</td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+
+            <section className="overflow-hidden rounded-lg border border-[#deded9] bg-white">
+              <div className="flex items-center justify-between gap-4 border-b border-[#e5e5e0] px-5 py-4 sm:px-6">
+                <div>
+                  <h2 className="text-base font-semibold">Referred customers</h2>
+                  <p className="mt-1 text-xs text-[#777771]">People who registered with this customer&apos;s referral code.</p>
+                </div>
+                <span className="rounded-md bg-[#fff0e9] px-2.5 py-1 text-xs font-semibold text-[#b83500]">
+                  {referrals.length} total
+                </span>
+              </div>
+              {referrals.length === 0 ? (
+                <p className="px-6 py-12 text-center text-sm text-[#777771]">No customers referred yet.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[640px] border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-[#e8e8e3] bg-[#fafaf8] text-xs font-semibold text-[#686864]">
+                        <th className="px-6 py-3">Customer</th>
+                        <th className="px-4 py-3">Phone</th>
+                        <th className="px-4 py-3">Spend progress</th>
+                        <th className="px-6 py-3 text-right">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {referrals.map((referral) => {
+                        const referredCustomer = referredCustomerMap.get(referral.referred_customer_id);
+                        const referralProgress = Math.min(
+                          100,
+                          Math.round((referral.accumulated_amount / referral.qualifying_target_amount) * 100),
+                        );
+
+                        return (
+                          <tr key={referral.id} className="border-b border-[#eeeeea] last:border-0">
+                            <td className="px-6 py-4">
+                              <Link
+                                href={`/admin/customers/${referral.referred_customer_id}`}
+                                className="text-sm font-semibold hover:text-[#b83500]"
+                              >
+                                {referredCustomer
+                                  ? `${referredCustomer.first_name} ${referredCustomer.surname}`
+                                  : "Unknown customer"}
+                              </Link>
+                              <p className="mt-1 text-xs text-[#777771]">Referred {formatDate(referral.created_at)}</p>
+                            </td>
+                            <td className="px-4 py-4 text-sm text-[#686864]">{referredCustomer?.phone ?? "Unavailable"}</td>
+                            <td className="px-4 py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="h-2 w-28 overflow-hidden rounded-full bg-[#ecece7]">
+                                  <div className="h-full rounded-full bg-[#ff4800]" style={{ width: `${referralProgress}%` }} />
+                                </div>
+                                <span className="text-xs font-semibold">{referralProgress}%</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <span
+                                className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold capitalize ${
+                                  referral.status === "rewarded"
+                                    ? "bg-[#e9f7ef] text-[#006b34]"
+                                    : referral.status === "cancelled"
+                                      ? "bg-[#f4f4f1] text-[#686864]"
+                                      : "bg-[#fff8e8] text-[#7a5913]"
+                                }`}
+                              >
+                                {referral.status}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

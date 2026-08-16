@@ -14,15 +14,15 @@ const supabase = createClient(url, serviceRoleKey, {
 });
 
 const adminCredentials = {
-  email: "admin@sw8kitchen.test",
+  email: "sw8kitchen@gmail.com",
   password: "Admin@12345",
 };
 
 const customerCredentials = {
-  phone: "07058149297",
-  surname: "Adeyemi",
-  authEmail: "07058149297@customers.sw8.local",
-  referralCode: "SW8TEST01",
+  phone: "07058149298",
+  surname: "Edwin",
+  authEmail: "07058149298@customers.sw8.local",
+  referralCode: "SW8-7058149298",
 };
 
 async function findAuthUser(email) {

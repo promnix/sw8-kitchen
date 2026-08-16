@@ -20,8 +20,8 @@ function customerAuthEmail(phone: string) {
   return `${phone}@customers.sw8.local`;
 }
 
-function newReferralCode() {
-  return `SW8${crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+function newReferralCode(phone: string) {
+  return `SW8-${phone.slice(1)}`;
 }
 
 export async function createCustomer(
@@ -110,7 +110,7 @@ export async function createCustomer(
   }
 
   const customerId = createdUser.user.id;
-  const referralCode = newReferralCode();
+  const referralCode = newReferralCode(phone);
 
   const { error: customerError } = await supabase.from("customers").insert({
     id: customerId,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedAdmin } from "@/lib/api/auth";
 import { createMailTransport, getEmailFrom } from "@/lib/email/gmail";
+import { buildNotificationEmail } from "@/lib/email/templates";
 
 export const runtime = "nodejs";
 
@@ -20,7 +21,7 @@ export async function POST() {
 
   const { data: notifications, error } = await supabase
     .from("notifications")
-    .select("id, recipient_email, subject, message, attempts")
+    .select("id, recipient_email, recipient_type, subject, message, attempts")
     .in("status", ["pending", "failed"])
     .lt("attempts", 3)
     .order("created_at", { ascending: true })
@@ -50,6 +51,11 @@ export async function POST() {
         to: notification.recipient_email,
         subject: notification.subject,
         text: notification.message,
+        html: buildNotificationEmail({
+          recipientType: notification.recipient_type,
+          subject: notification.subject,
+          message: notification.message,
+        }),
       });
 
       await supabase
