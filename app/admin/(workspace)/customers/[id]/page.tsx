@@ -329,12 +329,18 @@ export default async function CustomerProfilePage({
                   {rewards.slice(0, 5).map((reward) => (
                     <div key={reward.id} className="flex items-center justify-between gap-4 px-5 py-4">
                       <div>
-                        <p className="text-sm font-semibold capitalize">{reward.reward_type.replaceAll("_", " ")}</p>
+                        <p className={`text-sm font-semibold capitalize ${reward.status === "redeemed" ? "text-[#8a8a84] line-through decoration-[#d52f1f]" : ""}`}>
+                          {reward.reward_type.replaceAll("_", " ")}
+                        </p>
                         <p className="mt-1 text-xs text-[#777771]">{formatDate(reward.unlocked_at)}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-semibold">{naira(reward.maximum_value)}</p>
-                        <p className="mt-1 text-xs capitalize text-[#008d44]">{reward.status}</p>
+                        <p className={`text-sm font-semibold ${reward.status === "redeemed" ? "text-[#8a8a84] line-through decoration-[#d52f1f]" : ""}`}>
+                          {naira(reward.maximum_value)}
+                        </p>
+                        <p className={`mt-1 text-xs font-semibold ${reward.status === "redeemed" ? "text-[#d52f1f]" : "capitalize text-[#008d44]"}`}>
+                          {reward.status === "redeemed" ? "Redeem" : reward.status}
+                        </p>
                       </div>
                     </div>
                   ))}
