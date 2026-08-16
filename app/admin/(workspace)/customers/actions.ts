@@ -21,6 +21,29 @@ function newReferralCode(phone: string) {
   return `SW8-${phone.slice(1)}`;
 }
 
+async function findAuthUserByEmail(
+  supabase: ReturnType<typeof createAdminClient>,
+  email: string,
+) {
+  let page = 1;
+
+  while (true) {
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page,
+      perPage: 1000,
+    });
+    if (error) throw error;
+
+    const user = data.users.find(
+      (candidate) => candidate.email?.toLowerCase() === email.toLowerCase(),
+    );
+    if (user) return user;
+    if (data.users.length < 1000) return null;
+
+    page += 1;
+  }
+}
+
 export async function createCustomer(
   _state: CreateCustomerState,
   formData: FormData,
@@ -95,18 +118,39 @@ export async function createCustomer(
     referrerId = referrer.id;
   }
 
-  const { data: createdUser, error: authError } = await supabase.auth.admin.createUser({
-    email: customerAuthEmail(phone),
+  const authEmail = customerAuthEmail(phone);
+  const authAttributes = {
+    email: authEmail,
     password: customerAuthPassword(surname),
     email_confirm: true,
     user_metadata: { role: "customer", first_name: firstName, surname, phone },
-  });
+  };
 
-  if (authError || !createdUser.user) {
-    return { error: authError?.message ?? "Unable to create the customer login." };
+  let customerId: string;
+  let createdNewAuthUser = false;
+
+  try {
+    const existingAuthUser = await findAuthUserByEmail(supabase, authEmail);
+
+    if (existingAuthUser) {
+      const { data, error } = await supabase.auth.admin.updateUserById(
+        existingAuthUser.id,
+        authAttributes,
+      );
+      if (error || !data.user) throw error ?? new Error("Auth user update failed.");
+      customerId = data.user.id;
+    } else {
+      const { data, error } = await supabase.auth.admin.createUser(authAttributes);
+      if (error || !data.user) throw error ?? new Error("Auth user creation failed.");
+      customerId = data.user.id;
+      createdNewAuthUser = true;
+    }
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : "Unable to create the customer login.",
+    };
   }
 
-  const customerId = createdUser.user.id;
   const referralCode = newReferralCode(phone);
 
   const { error: customerError } = await supabase.from("customers").insert({
@@ -123,7 +167,7 @@ export async function createCustomer(
   });
 
   if (customerError) {
-    await supabase.auth.admin.deleteUser(customerId);
+    if (createdNewAuthUser) await supabase.auth.admin.deleteUser(customerId);
     return { error: "Unable to save the customer profile. Please try again." };
   }
 
@@ -137,7 +181,7 @@ export async function createCustomer(
 
   if (cycleError) {
     await supabase.from("customers").delete().eq("id", customerId);
-    await supabase.auth.admin.deleteUser(customerId);
+    if (createdNewAuthUser) await supabase.auth.admin.deleteUser(customerId);
     return { error: "Unable to start the customer loyalty record. Please try again." };
   }
 
@@ -152,7 +196,7 @@ export async function createCustomer(
     if (referralError) {
       await supabase.from("loyalty_cycles").delete().eq("customer_id", customerId);
       await supabase.from("customers").delete().eq("id", customerId);
-      await supabase.auth.admin.deleteUser(customerId);
+      if (createdNewAuthUser) await supabase.auth.admin.deleteUser(customerId);
       return { error: "Unable to save the referral. Please try again." };
     }
   }
