@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 function naira(value: number) {
@@ -47,7 +47,7 @@ export default async function CustomerProfilePage({
         .eq("customer_id", id),
       supabase
         .from("reward_credit_transactions")
-        .select("amount, transaction_type")
+        .select("amount, transaction_type, reward_id")
         .eq("customer_id", id),
       supabase
         .from("loyalty_cycles")
@@ -74,6 +74,21 @@ export default async function CustomerProfilePage({
   const cycle = cycleResult.data;
   const rewards = rewardsResult.data ?? [];
   const referrals = referralsResult.data ?? [];
+  const rewardIds = rewards.map((reward) => reward.id);
+  const { data: rewardRedemptions } = rewardIds.length
+    ? await supabase
+        .from("purchase_reward_redemptions")
+        .select("reward_id, redeemed_value")
+        .in("reward_id", rewardIds)
+    : { data: [] };
+  const redemptionMap = new Map(
+    (rewardRedemptions ?? []).map((redemption) => [redemption.reward_id, redemption.redeemed_value]),
+  );
+  const rewardRemainderMap = new Map(
+    rewardCredits
+      .filter((transaction) => transaction.transaction_type === "reward_remainder" && transaction.reward_id)
+      .map((transaction) => [transaction.reward_id as string, transaction.amount]),
+  );
   const referredCustomerIds = referrals.map((referral) => referral.referred_customer_id);
   const { data: referredCustomers } = referredCustomerIds.length
     ? await supabase
@@ -338,24 +353,48 @@ export default async function CustomerProfilePage({
                 <p className="px-5 py-8 text-sm text-[#777771]">No rewards earned yet.</p>
               ) : (
                 <div className="divide-y divide-[#eeeeea]">
-                  {rewards.slice(0, 5).map((reward) => (
-                    <div key={reward.id} className="flex items-center justify-between gap-4 px-5 py-4">
-                      <div>
-                        <p className={`text-sm font-semibold capitalize ${reward.status === "redeemed" ? "text-[#8a8a84] line-through decoration-[#d52f1f]" : ""}`}>
-                          {reward.reward_type.replaceAll("_", " ")}
-                        </p>
-                        <p className="mt-1 text-xs text-[#777771]">{formatDate(reward.unlocked_at)}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className={`text-sm font-semibold ${reward.status === "redeemed" ? "text-[#8a8a84] line-through decoration-[#d52f1f]" : ""}`}>
-                          {naira(reward.maximum_value)}
-                        </p>
-                        <p className={`mt-1 text-xs font-semibold ${reward.status === "redeemed" ? "text-[#d52f1f]" : "capitalize text-[#008d44]"}`}>
-                          {reward.status === "redeemed" ? "Redeem" : reward.status}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
+                  {rewards.slice(0, 5).map((reward) => {
+                    const redeemed = reward.status === "redeemed";
+                    const amountUsed = redemptionMap.get(reward.id) ?? 0;
+                    const amountMoved = rewardRemainderMap.get(reward.id) ?? 0;
+
+                    return (
+                      <details key={reward.id} className="group px-5 py-4 open:bg-[#fafaf8]">
+                        <summary className={`flex items-center justify-between gap-4 list-none ${redeemed ? "cursor-pointer" : "cursor-default"}`}>
+                          <div>
+                            <p className={`text-sm font-semibold capitalize ${redeemed ? "text-[#8a8a84] line-through decoration-[#d52f1f]" : ""}`}>
+                              {reward.reward_type.replaceAll("_", " ")}
+                            </p>
+                            <p className="mt-1 text-xs text-[#777771]">{formatDate(reward.unlocked_at)}</p>
+                          </div>
+                          <div className="flex items-center gap-3 text-right">
+                            <div>
+                              <p className={`text-sm font-semibold ${redeemed ? "text-[#8a8a84] line-through decoration-[#d52f1f]" : ""}`}>
+                                {naira(reward.maximum_value)}
+                              </p>
+                              <p className={`mt-1 text-xs font-semibold ${redeemed ? "text-[#d52f1f]" : "capitalize text-[#008d44]"}`}>
+                                {redeemed ? "Redeemed" : reward.status}
+                              </p>
+                            </div>
+                            {redeemed ? <ChevronDown aria-hidden="true" className="size-4 text-[#777771] transition-transform group-open:rotate-180" /> : null}
+                          </div>
+                        </summary>
+                        {redeemed ? (
+                          <div className="mt-4 rounded-md border border-[#e5e5e0] bg-white px-4 py-3">
+                            <div className="flex items-center justify-between gap-4 text-sm">
+                              <span className="text-[#686864]">Used on purchase</span>
+                              <strong>{naira(amountUsed)}</strong>
+                            </div>
+                            <div className="mt-3 flex items-center justify-between gap-4 border-t border-[#eeeeea] pt-3 text-sm">
+                              <span className="text-[#686864]">Added to reward balance</span>
+                              <strong className="text-[#008d44]">{naira(amountMoved)}</strong>
+                            </div>
+                            {reward.redeemed_at ? <p className="mt-3 text-xs text-[#8a8a84]">Redeemed {formatDate(reward.redeemed_at)}</p> : null}
+                          </div>
+                        ) : null}
+                      </details>
+                    );
+                  })}
                 </div>
               )}
             </section>
