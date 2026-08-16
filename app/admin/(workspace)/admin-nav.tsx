@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, Gift, LayoutDashboard, LogOut, Network, Users } from "lucide-react";
+import { Bell, Gift, LayoutDashboard, LogOut, Network, Settings, Users } from "lucide-react";
 import { adminSignOut } from "../../actions/auth";
 
 export const adminNavItems = [
@@ -12,6 +12,7 @@ export const adminNavItems = [
   { href: "/admin/referrals", label: "Referrals", icon: Network },
   { href: "/admin/rewards", label: "Rewards", icon: Gift },
   { href: "/admin/notifications", label: "Notifications", icon: Bell },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export function AdminNav() {
