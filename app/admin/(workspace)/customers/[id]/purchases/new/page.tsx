@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { PurchaseForm } from "./purchase-form";
 
@@ -44,7 +45,8 @@ export default async function NewPurchasePage({
   return (
     <main className="px-5 py-7 sm:px-7 sm:py-9 xl:px-10">
       <div className="mx-auto max-w-3xl">
-        <Link href={`/admin/customers/${id}`} className="text-sm font-semibold text-[#b83500] hover:text-black">
+        <Link href={`/admin/customers/${id}`} className="group inline-flex items-center gap-2 text-sm font-semibold text-[#b83500] hover:text-black">
+          <ArrowLeft aria-hidden="true" className="size-4 transition-transform duration-200 group-hover:-translate-x-1" />
           Back to customer
         </Link>
         <div className="mt-5">

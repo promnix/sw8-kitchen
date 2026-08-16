@@ -132,7 +132,7 @@ export default async function CustomerProfilePage({
             </Link>
             <Link
               href={`/admin/customers/${id}/purchases/new`}
-              className="inline-flex h-10 items-center bg-[#ff4800] px-4 text-sm font-semibold text-white hover:bg-[#df3e00]"
+              className="inline-flex h-10 items-center rounded-md bg-[#ff4800] px-4 text-sm font-semibold text-white hover:bg-[#df3e00]"
             >
               Record purchase
             </Link>
