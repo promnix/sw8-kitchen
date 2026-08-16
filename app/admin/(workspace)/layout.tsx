@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LogOut } from "lucide-react";
 import { adminSignOut } from "../../actions/auth";
+import { LogoutButton } from "../../logout-button";
 import { createClient } from "@/lib/supabase/server";
 import { AdminNav, MobileAdminNav } from "./admin-nav";
 
@@ -63,13 +63,7 @@ export default async function AdminWorkspaceLayout({
             </div>
           </div>
           <form action={adminSignOut}>
-            <button
-              type="submit"
-              className="inline-flex h-10 w-full items-center justify-center gap-2 border border-white/20 text-sm font-medium text-white transition-colors hover:bg-white/10"
-            >
-              <LogOut aria-hidden="true" className="size-4" />
-              Sign out
-            </button>
+            <LogoutButton className="inline-flex h-10 w-full items-center justify-center gap-2 border border-white/20 text-sm font-medium text-white hover:bg-white/10" />
           </form>
         </div>
       </aside>

@@ -5,6 +5,7 @@ import { signOut } from "../actions/auth";
 import { createClient } from "@/lib/supabase/server";
 import { Pagination } from "../admin/(workspace)/pagination";
 import { CopyReferralButton } from "./copy-referral-button";
+import { LogoutButton } from "../logout-button";
 
 const PAGE_SIZE = 10;
 
@@ -141,7 +142,7 @@ export default async function CustomerPage({ searchParams }: PageProps<"/custome
             </div>
           </div>
           <form action={signOut}>
-            <button type="submit" className="h-10 rounded-md bg-black px-4 text-sm font-semibold text-white transition-colors hover:bg-[#ff4800]">Sign out</button>
+            <LogoutButton className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-black px-4 text-sm font-semibold text-white hover:bg-[#ff4800]" />
           </form>
         </div>
       </header>

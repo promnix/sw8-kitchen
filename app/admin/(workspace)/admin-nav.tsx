@@ -4,8 +4,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Bell, Gift, LayoutDashboard, LogOut, Network, Settings, Users } from "lucide-react";
+import { Bell, Gift, LayoutDashboard, Network, Settings, Users } from "lucide-react";
 import { adminSignOut } from "../../actions/auth";
+import { LogoutButton } from "../../logout-button";
 
 export const adminNavItems = [
   { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -127,13 +128,7 @@ export function MobileAdminNav() {
             </nav>
             <div className="border-t border-white/15 p-4">
               <form action={adminSignOut}>
-                <button
-                  type="submit"
-                  className="h-11 w-full border border-white/20 text-sm font-semibold text-white transition-colors hover:bg-white/10"
-                >
-                  <LogOut aria-hidden="true" className="mr-2 inline size-4 align-[-3px]" />
-                  Sign out
-                </button>
+                <LogoutButton className="inline-flex h-11 w-full items-center justify-center gap-2 border border-white/20 text-sm font-semibold text-white hover:bg-white/10" />
               </form>
             </div>
           </aside>
