@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { customerAuthEmail, customerAuthPassword } from "@/lib/auth/customer-credentials";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,10 +15,6 @@ function normalizePhone(value: string) {
   if (digits.length === 10 && /^[789]/.test(digits)) return `0${digits}`;
   if (digits.length === 13 && digits.startsWith("234")) return `0${digits.slice(3)}`;
   return null;
-}
-
-function customerAuthEmail(phone: string) {
-  return `${phone}@customers.sw8.local`;
 }
 
 function newReferralCode(phone: string) {
@@ -100,7 +97,7 @@ export async function createCustomer(
 
   const { data: createdUser, error: authError } = await supabase.auth.admin.createUser({
     email: customerAuthEmail(phone),
-    password: surname,
+    password: customerAuthPassword(surname),
     email_confirm: true,
     user_metadata: { role: "customer", first_name: firstName, surname, phone },
   });

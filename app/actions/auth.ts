@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { customerAuthEmail, customerAuthPassword } from "@/lib/auth/customer-credentials";
 import { createClient } from "@/lib/supabase/server";
 
 export type SignInState = {
@@ -12,10 +13,6 @@ const initialError = "Enter the correct sign-in details and try again.";
 function normalizeNigerianPhone(value: string) {
   const digits = value.replace(/\D/g, "");
   return digits.length === 11 && digits.startsWith("0") ? digits : null;
-}
-
-function customerAuthEmail(phone: string) {
-  return `${phone}@customers.sw8.local`;
 }
 
 async function signIn(
@@ -77,7 +74,8 @@ export async function customerSignIn(
 ) {
   const phone = String(formData.get("identifier") ?? "");
   const surname = String(formData.get("password") ?? "");
-  return signIn("customer", phone, surname);
+  if (!surname.trim()) return { error: initialError };
+  return signIn("customer", phone, customerAuthPassword(surname));
 }
 
 export async function adminSignIn(_state: SignInState, formData: FormData) {

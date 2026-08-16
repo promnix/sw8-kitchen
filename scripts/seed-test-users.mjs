@@ -25,6 +25,10 @@ const customerCredentials = {
   referralCode: "SW8-7058149298",
 };
 
+function customerAuthPassword(surname) {
+  return `SW8:${surname.trim()}:customer`;
+}
+
 async function findAuthUser(email) {
   const { data, error } = await supabase.auth.admin.listUsers({ perPage: 1000 });
   if (error) throw error;
@@ -74,7 +78,7 @@ if (adminProfileError) throw adminProfileError;
 
 const customerUser = await ensureAuthUser({
   email: customerCredentials.authEmail,
-  password: customerCredentials.surname,
+  password: customerAuthPassword(customerCredentials.surname),
   metadata: {
     role: "customer",
     first_name: "Test",

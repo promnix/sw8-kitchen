@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { customerAuthEmail, customerAuthPassword } from "@/lib/auth/customer-credentials";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -56,7 +57,7 @@ export async function updateCustomer(
 
   const { data: current } = await supabase
     .from("customers")
-    .select("phone, email")
+    .select("phone, surname")
     .eq("id", customerId)
     .maybeSingle();
   if (!current) return { error: "Customer profile not found." };
@@ -70,11 +71,14 @@ export async function updateCustomer(
   if (duplicate) return { error: "A different customer already uses this phone number." };
 
   const phoneChanged = current.phone !== phone;
-  if (phoneChanged) {
+  const surnameChanged = current.surname !== surname;
+  if (phoneChanged || surnameChanged) {
     const { error } = await supabase.auth.admin.updateUserById(customerId, {
-      email: `${phone}@customers.sw8.local`,
+      email: customerAuthEmail(phone),
+      password: customerAuthPassword(surname),
+      user_metadata: { role: "customer", first_name: firstName, surname, phone },
     });
-    if (error) return { error: "Unable to update the customer's login phone number." };
+    if (error) return { error: "Unable to update the customer's login details." };
   }
 
   const { error: updateError } = await supabase
