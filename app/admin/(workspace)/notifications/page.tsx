@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AdminPageHeader } from "../admin-page-header";
+import { Pagination } from "../pagination";
 
 type Notification = {
   id: string;
@@ -20,30 +22,35 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState("");
+  const [total, setTotal] = useState(0);
+  const searchParams = useSearchParams();
+  const currentPage = Math.max(1, Number(searchParams.get("page") ?? "1") || 1);
 
   async function loadNotifications() {
     setLoading(true);
-    const response = await fetch("/api/admin/notifications", { cache: "no-store" });
+    const response = await fetch(`/api/admin/notifications?page=${currentPage}`, { cache: "no-store" });
     const result = await response.json();
-    setNotifications(response.ok ? result.data : []);
+    setNotifications(response.ok ? result.data.items : []);
+    setTotal(response.ok ? result.data.total : 0);
     if (!response.ok) setMessage(result.error ?? "Unable to load notifications.");
     setLoading(false);
   }
 
   useEffect(() => {
     let active = true;
-    void fetch("/api/admin/notifications", { cache: "no-store" })
+    void fetch(`/api/admin/notifications?page=${currentPage}`, { cache: "no-store" })
       .then(async (response) => ({ response, result: await response.json() }))
       .then(({ response, result }) => {
         if (!active) return;
-        setNotifications(response.ok ? result.data : []);
+        setNotifications(response.ok ? result.data.items : []);
+        setTotal(response.ok ? result.data.total : 0);
         if (!response.ok) setMessage(result.error ?? "Unable to load notifications.");
         setLoading(false);
       });
     return () => {
       active = false;
     };
-  }, []);
+  }, [currentPage]);
 
   async function retryFailed() {
     setSending(true);
@@ -74,7 +81,7 @@ export default function NotificationsPage() {
           action={<button
             type="button"
             onClick={retryFailed}
-            disabled={sending || !notifications.some((notification) => notification.status === "failed")}
+            disabled={sending}
             className="h-11 rounded-md bg-[#ff4800] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#df3e00] disabled:bg-[#bd5f39]"
           >
             {sending ? "Retrying..." : "Retry failed emails"}
@@ -96,6 +103,7 @@ export default function NotificationsPage() {
               </table>
             </div>
           )}
+          <Pagination page={currentPage} pageSize={20} total={total} pathname="/admin/notifications" />
         </section>
       </div>
     </main>

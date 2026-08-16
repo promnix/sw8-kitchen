@@ -2,6 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { Pagination } from "../../pagination";
+
+const PAGE_SIZE = 10;
 
 function naira(value: number) {
   return new Intl.NumberFormat("en-NG", {
@@ -24,7 +27,10 @@ export default async function CustomerProfilePage({
   searchParams,
 }: PageProps<"/admin/customers/[id]">) {
   const { id } = await params;
-  const { purchase, updated, credit } = await searchParams;
+  const { purchase, updated, credit, purchasesPage, referralsPage, rewardsPage } = await searchParams;
+  const purchasePage = Math.max(1, Number(typeof purchasesPage === "string" ? purchasesPage : "1") || 1);
+  const referralPage = Math.max(1, Number(typeof referralsPage === "string" ? referralsPage : "1") || 1);
+  const rewardPage = Math.max(1, Number(typeof rewardsPage === "string" ? rewardsPage : "1") || 1);
   const supabase = await createClient();
   const { data: customer } = await supabase
     .from("customers")
@@ -34,13 +40,19 @@ export default async function CustomerProfilePage({
 
   if (!customer) notFound();
 
-  const [purchasesResult, creditsResult, rewardCreditsResult, cycleResult, rewardsResult, referralsResult] =
+  const [purchaseSummaryResult, purchasesResult, creditsResult, rewardCreditsResult, cycleResult, rewardSummaryResult, rewardsResult, referralSummaryResult, referralsResult] =
     await Promise.all([
       supabase
         .from("purchases")
-        .select("id, reference, subtotal_amount, loyalty_eligible_amount, purchased_at, status")
+        .select("loyalty_eligible_amount, status")
         .eq("customer_id", id)
-        .order("purchased_at", { ascending: false }),
+        .eq("status", "completed"),
+      supabase
+        .from("purchases")
+        .select("id, reference, subtotal_amount, loyalty_eligible_amount, purchased_at, status", { count: "exact" })
+        .eq("customer_id", id)
+        .order("purchased_at", { ascending: false })
+        .range((purchasePage - 1) * PAGE_SIZE, purchasePage * PAGE_SIZE - 1),
       supabase
         .from("credit_transactions")
         .select("amount, transaction_type")
@@ -58,22 +70,37 @@ export default async function CustomerProfilePage({
         .maybeSingle(),
       supabase
         .from("rewards")
-        .select("id, reward_type, status, maximum_value, unlocked_at, redeemed_at")
+        .select("id, status")
         .eq("customer_id", id)
         .order("unlocked_at", { ascending: false }),
       supabase
+        .from("rewards")
+        .select("id, reward_type, status, maximum_value, unlocked_at, redeemed_at", { count: "exact" })
+        .eq("customer_id", id)
+        .order("unlocked_at", { ascending: false })
+        .range((rewardPage - 1) * PAGE_SIZE, rewardPage * PAGE_SIZE - 1),
+      supabase
         .from("referrals")
-        .select("id, referred_customer_id, status, accumulated_amount, qualifying_target_amount, created_at")
+        .select("id, status")
         .eq("referrer_customer_id", id)
         .order("created_at", { ascending: false }),
+      supabase
+        .from("referrals")
+        .select("id, referred_customer_id, status, accumulated_amount, qualifying_target_amount, created_at", { count: "exact" })
+        .eq("referrer_customer_id", id)
+        .order("created_at", { ascending: false })
+        .range((referralPage - 1) * PAGE_SIZE, referralPage * PAGE_SIZE - 1),
     ]);
 
   const purchases = purchasesResult.data ?? [];
+  const purchaseSummary = purchaseSummaryResult.data ?? [];
   const credits = creditsResult.data ?? [];
   const rewardCredits = rewardCreditsResult.data ?? [];
   const cycle = cycleResult.data;
   const rewards = rewardsResult.data ?? [];
+  const rewardSummary = rewardSummaryResult.data ?? [];
   const referrals = referralsResult.data ?? [];
+  const referralSummary = referralSummaryResult.data ?? [];
   const rewardIds = rewards.map((reward) => reward.id);
   const { data: rewardRedemptions } = rewardIds.length
     ? await supabase
@@ -100,8 +127,7 @@ export default async function CustomerProfilePage({
     (referredCustomers ?? []).map((referredCustomer) => [referredCustomer.id, referredCustomer]),
   );
 
-  const totalSpent = purchases
-    .filter((purchase) => purchase.status === "completed")
+  const totalSpent = purchaseSummary
     .reduce((total, purchase) => total + purchase.loyalty_eligible_amount, 0);
   const creditBalance = credits.reduce((total, transaction) => {
     const increase =
@@ -184,11 +210,11 @@ export default async function CustomerProfilePage({
         ) : null}
 
         <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label="Customer summary">
-          <Summary label="Total purchases" value={naira(totalSpent)} note={`${purchases.length} records`} color="border-black" />
+          <Summary label="Total purchases" value={naira(totalSpent)} note={`${purchaseSummary.length} records`} color="border-black" />
           <Summary label="Cash balance" value={naira(creditBalance)} note="Refundable change left" color="border-[#ffb132]" />
           <Summary label="Reward balance" value={naira(rewardCreditBalance)} note="Purchases only, not cash" color="border-[#008d44]" />
-          <Summary label="Available rewards" value={String(rewards.filter((reward) => reward.status === "available").length)} note="Ready for redemption" color="border-[#008d44]" />
-          <Summary label="Customers referred" value={String(referrals.length)} note={`${referrals.filter((referral) => referral.status === "rewarded").length} rewarded`} color="border-[#ff4800]" />
+          <Summary label="Available rewards" value={String(rewardSummary.filter((reward) => reward.status === "available").length)} note="Ready for redemption" color="border-[#008d44]" />
+          <Summary label="Customers referred" value={String(referralSummary.length)} note={`${referralSummary.filter((referral) => referral.status === "rewarded").length} rewarded`} color="border-[#ff4800]" />
         </section>
 
         <div className="mt-7 grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(300px,0.75fr)]">
@@ -241,7 +267,7 @@ export default async function CustomerProfilePage({
                       </tr>
                     </thead>
                     <tbody>
-                      {purchases.slice(0, 10).map((purchase) => (
+                      {purchases.map((purchase) => (
                         <tr key={purchase.id} className="border-b border-[#eeeeea] last:border-0">
                           <td className="px-6 py-4 font-mono text-xs font-semibold">{purchase.reference}</td>
                           <td className="px-4 py-4 text-sm text-[#686864]">{formatDate(purchase.purchased_at)}</td>
@@ -253,6 +279,7 @@ export default async function CustomerProfilePage({
                   </table>
                 </div>
               )}
+              <Pagination page={purchasePage} pageSize={PAGE_SIZE} total={purchasesResult.count ?? 0} pathname={`/admin/customers/${id}`} pageKey="purchasesPage" query={{ referralsPage: referralPage > 1 ? referralPage : undefined, rewardsPage: rewardPage > 1 ? rewardPage : undefined }} />
             </section>
 
             <section className="overflow-hidden rounded-lg border border-[#deded9] bg-white">
@@ -262,7 +289,7 @@ export default async function CustomerProfilePage({
                   <p className="mt-1 text-xs text-[#777771]">People who registered with this customer&apos;s referral code.</p>
                 </div>
                 <span className="rounded-md bg-[#fff0e9] px-2.5 py-1 text-xs font-semibold text-[#b83500]">
-                  {referrals.length} total
+                  {referralSummary.length} total
                 </span>
               </div>
               {referrals.length === 0 ? (
@@ -328,6 +355,7 @@ export default async function CustomerProfilePage({
                   </table>
                 </div>
               )}
+              <Pagination page={referralPage} pageSize={PAGE_SIZE} total={referralsResult.count ?? 0} pathname={`/admin/customers/${id}`} pageKey="referralsPage" query={{ purchasesPage: purchasePage > 1 ? purchasePage : undefined, rewardsPage: rewardPage > 1 ? rewardPage : undefined }} />
             </section>
           </div>
 
@@ -353,7 +381,7 @@ export default async function CustomerProfilePage({
                 <p className="px-5 py-8 text-sm text-[#777771]">No rewards earned yet.</p>
               ) : (
                 <div className="divide-y divide-[#eeeeea]">
-                  {rewards.slice(0, 5).map((reward) => {
+                  {rewards.map((reward) => {
                     const redeemed = reward.status === "redeemed";
                     const amountUsed = redemptionMap.get(reward.id) ?? 0;
                     const amountMoved = rewardRemainderMap.get(reward.id) ?? 0;
@@ -397,6 +425,7 @@ export default async function CustomerProfilePage({
                   })}
                 </div>
               )}
+              <Pagination page={rewardPage} pageSize={PAGE_SIZE} total={rewardsResult.count ?? 0} pathname={`/admin/customers/${id}`} pageKey="rewardsPage" query={{ purchasesPage: purchasePage > 1 ? purchasePage : undefined, referralsPage: referralPage > 1 ? referralPage : undefined }} />
             </section>
           </div>
         </div>

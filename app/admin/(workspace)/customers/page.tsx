@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AdminPageHeader } from "../admin-page-header";
+import { Pagination } from "../pagination";
+
+const PAGE_SIZE = 20;
 
 function fullName(customer: {
   first_name: string;
@@ -15,22 +18,23 @@ function fullName(customer: {
 export default async function CustomersPage({
   searchParams,
 }: PageProps<"/admin/customers">) {
-  const { query, created } = await searchParams;
+  const { query, created, page } = await searchParams;
   const search = typeof query === "string" ? query.trim().toLowerCase() : "";
+  const currentPage = Math.max(1, Number(typeof page === "string" ? page : "1") || 1);
   const supabase = await createClient();
-  const { data } = await supabase
+  let customersQuery = supabase
     .from("customers")
-    .select("id, first_name, surname, other_names, phone, email, address, referral_code, status, created_at")
+    .select("id, first_name, surname, other_names, phone, email, address, referral_code, status, created_at", { count: "exact" })
     .order("created_at", { ascending: false })
-    .limit(100);
+    .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
 
-  const customers = (data ?? []).filter((customer) => {
-    if (!search) return true;
-    return [fullName(customer), customer.phone, customer.referral_code]
-      .join(" ")
-      .toLowerCase()
-      .includes(search);
-  });
+  if (search) {
+    const term = search.replace(/[%,()]/g, "");
+    customersQuery = customersQuery.or(`first_name.ilike.%${term}%,surname.ilike.%${term}%,other_names.ilike.%${term}%,phone.ilike.%${term}%,referral_code.ilike.%${term}%`);
+  }
+
+  const { data, count } = await customersQuery;
+  const customers = data ?? [];
 
   return (
     <main className="px-5 py-7 sm:px-7 sm:py-9 xl:px-10">
@@ -118,6 +122,7 @@ export default async function CustomersPage({
               </table>
             </div>
           )}
+          <Pagination page={currentPage} pageSize={PAGE_SIZE} total={count ?? 0} pathname="/admin/customers" query={{ query: search || undefined }} />
         </section>
       </div>
     </main>

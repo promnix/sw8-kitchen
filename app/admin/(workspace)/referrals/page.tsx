@@ -1,25 +1,29 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AdminPageHeader } from "../admin-page-header";
+import { Pagination } from "../pagination";
+
+const PAGE_SIZE = 20;
 
 function naira(kobo: number) {
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(kobo / 100);
 }
 
 export default async function ReferralsPage({ searchParams }: PageProps<"/admin/referrals">) {
-  const { status } = await searchParams;
+  const { status, page } = await searchParams;
   const activeStatus = typeof status === "string" ? status : "all";
+  const currentPage = Math.max(1, Number(typeof page === "string" ? page : "1") || 1);
   const supabase = await createClient();
   const allReferralsQuery = supabase
     .from("referrals")
     .select("referrer_customer_id, status");
   let query = supabase
     .from("referrals")
-    .select("id, referrer_customer_id, referred_customer_id, referral_code_used, accumulated_amount, qualifying_target_amount, status, created_at, qualified_at")
+    .select("id, referrer_customer_id, referred_customer_id, referral_code_used, accumulated_amount, qualifying_target_amount, status, created_at, qualified_at", { count: "exact" })
     .order("created_at", { ascending: false })
-    .limit(200);
+    .range((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE - 1);
   if (["progressing", "rewarded", "cancelled"].includes(activeStatus)) query = query.eq("status", activeStatus);
-  const [{ data }, { data: allReferralsData }] = await Promise.all([query, allReferralsQuery]);
+  const [{ data, count }, { data: allReferralsData }] = await Promise.all([query, allReferralsQuery]);
   const referrals = data ?? [];
   const allReferrals = allReferralsData ?? [];
   const leaderboard = Array.from(
@@ -105,6 +109,7 @@ export default async function ReferralsPage({ searchParams }: PageProps<"/admin/
               </table>
             </div>
           )}
+          <Pagination page={currentPage} pageSize={PAGE_SIZE} total={count ?? 0} pathname="/admin/referrals" query={{ status: activeStatus === "all" ? undefined : activeStatus }} />
         </section>
         <div className="mt-6 flex flex-wrap gap-2">
           {[{ key: "all", label: "All" }, { key: "progressing", label: "Progressing" }, { key: "rewarded", label: "Rewarded" }, { key: "cancelled", label: "Cancelled" }].map((item) => (
