@@ -19,13 +19,17 @@ export async function recordPurchase(
 ): Promise<RecordPurchaseState> {
   const subtotal = toKobo(formData.get("subtotal"));
   const creditUsed = toKobo(formData.get("creditUsed"));
+  const rewardCreditUsed = toKobo(formData.get("rewardCreditUsed"));
   const changeLeft = toKobo(formData.get("changeLeft"));
   const rewardId = String(formData.get("rewardId") ?? "").trim() || null;
+  const rewardUsed = toKobo(formData.get("rewardUsed"));
   const notes = String(formData.get("notes") ?? "").trim() || null;
 
   if (!subtotal || subtotal <= 0) return { error: "Enter a purchase amount greater than zero." };
   if (creditUsed === null) return { error: "Enter a valid credit amount." };
+  if (rewardCreditUsed === null) return { error: "Enter a valid reward balance amount." };
   if (changeLeft === null) return { error: "Enter a valid amount for change left behind." };
+  if (rewardUsed === null) return { error: "Enter a valid reward amount." };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("record_customer_purchase", {
@@ -34,6 +38,8 @@ export async function recordPurchase(
     p_credit_used_amount: creditUsed,
     p_change_left_amount: changeLeft,
     p_reward_id: rewardId,
+    p_reward_used_amount: rewardUsed,
+    p_reward_credit_used_amount: rewardCreditUsed,
     p_notes: notes,
   });
 

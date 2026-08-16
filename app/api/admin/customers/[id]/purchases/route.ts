@@ -4,8 +4,10 @@ import { getAuthenticatedAdmin } from "@/lib/api/auth";
 type PurchaseBody = {
   subtotalAmount?: number;
   creditUsedAmount?: number;
+  rewardCreditUsedAmount?: number;
   changeLeftAmount?: number;
   rewardId?: string | null;
+  rewardUsedAmount?: number;
   notes?: string | null;
 };
 
@@ -27,7 +29,9 @@ export async function POST(
   const { id } = await params;
   const subtotal = body.subtotalAmount;
   const creditUsed = body.creditUsedAmount ?? 0;
+  const rewardCreditUsed = body.rewardCreditUsedAmount ?? 0;
   const changeLeft = body.changeLeftAmount ?? 0;
+  const rewardUsed = body.rewardUsedAmount ?? 0;
 
   if (!Number.isSafeInteger(subtotal) || (subtotal ?? 0) <= 0) {
     return NextResponse.json({ error: "subtotalAmount must be a positive integer in kobo." }, { status: 422 });
@@ -38,6 +42,12 @@ export async function POST(
   if (!Number.isSafeInteger(changeLeft) || changeLeft < 0) {
     return NextResponse.json({ error: "changeLeftAmount must be a non-negative integer in kobo." }, { status: 422 });
   }
+  if (!Number.isSafeInteger(rewardCreditUsed) || rewardCreditUsed < 0) {
+    return NextResponse.json({ error: "rewardCreditUsedAmount must be a non-negative integer in kobo." }, { status: 422 });
+  }
+  if (!Number.isSafeInteger(rewardUsed) || rewardUsed < 0) {
+    return NextResponse.json({ error: "rewardUsedAmount must be a non-negative integer in kobo." }, { status: 422 });
+  }
 
   const { data, error } = await supabase.rpc("record_customer_purchase", {
     p_customer_id: id,
@@ -45,6 +55,8 @@ export async function POST(
     p_credit_used_amount: creditUsed,
     p_change_left_amount: changeLeft,
     p_reward_id: body.rewardId || null,
+    p_reward_used_amount: rewardUsed,
+    p_reward_credit_used_amount: rewardCreditUsed,
     p_notes: body.notes?.trim() || null,
   });
 

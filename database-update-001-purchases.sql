@@ -1,12 +1,16 @@
 -- Run once in the Supabase SQL Editor after database.sql.
 -- Atomically records a purchase and updates credit, loyalty, referrals, and rewards.
 
+drop function if exists public.record_customer_purchase(uuid, bigint, bigint, bigint, uuid, text);
+
 create or replace function public.record_customer_purchase(
   p_customer_id uuid,
   p_subtotal_amount bigint,
   p_credit_used_amount bigint default 0,
   p_change_left_amount bigint default 0,
   p_reward_id uuid default null,
+  p_reward_used_amount bigint default 0,
+  p_reward_credit_used_amount bigint default 0,
   p_notes text default null
 )
 returns jsonb
@@ -19,8 +23,10 @@ declare
   v_purchase_id uuid := gen_random_uuid();
   v_reference varchar(50);
   v_credit_balance bigint;
+  v_reward_credit_balance bigint;
   v_reward public.rewards%rowtype;
   v_reward_discount bigint := 0;
+  v_reward_remainder bigint := 0;
   v_amount_paid bigint;
   v_loyalty_amount bigint;
   v_cycle public.loyalty_cycles%rowtype;
@@ -38,11 +44,16 @@ begin
     raise exception 'Customer does not exist or is not active';
   end if;
 
+  perform pg_advisory_xact_lock(hashtextextended(p_customer_id::text, 0));
+
   if p_subtotal_amount <= 0 then
     raise exception 'Purchase amount must be greater than zero';
   end if;
 
-  if p_credit_used_amount < 0 or p_change_left_amount < 0 then
+  if p_credit_used_amount < 0
+     or p_change_left_amount < 0
+     or p_reward_used_amount < 0
+     or p_reward_credit_used_amount < 0 then
     raise exception 'Credit values cannot be negative';
   end if;
 
@@ -57,7 +68,21 @@ begin
   where customer_id = p_customer_id;
 
   if p_credit_used_amount > v_credit_balance then
-    raise exception 'Credit used exceeds the customer balance';
+    raise exception 'Cash credit used exceeds the customer balance';
+  end if;
+
+  select coalesce(sum(
+    case
+      when transaction_type in ('reward_remainder', 'adjustment_increase') then amount
+      else -amount
+    end
+  ), 0)
+  into v_reward_credit_balance
+  from public.reward_credit_transactions
+  where customer_id = p_customer_id;
+
+  if p_reward_credit_used_amount > v_reward_credit_balance then
+    raise exception 'Reward credit used exceeds the customer reward balance';
   end if;
 
   if p_reward_id is not null then
@@ -70,15 +95,26 @@ begin
       raise exception 'The selected reward is not available for this customer';
     end if;
 
-    v_reward_discount := least(v_reward.maximum_value, p_subtotal_amount);
+    if p_reward_used_amount <= 0 then
+      raise exception 'Enter the amount of the selected reward to use';
+    end if;
+
+    if p_reward_used_amount > v_reward.maximum_value then
+      raise exception 'Reward amount used exceeds the selected reward value';
+    end if;
+
+    v_reward_discount := p_reward_used_amount;
+    v_reward_remainder := v_reward.maximum_value - v_reward_discount;
+  elsif p_reward_used_amount > 0 then
+    raise exception 'Select a reward before entering a reward amount';
   end if;
 
-  if p_credit_used_amount > p_subtotal_amount - v_reward_discount then
-    raise exception 'Credit used exceeds the remaining purchase amount';
+  if v_reward_discount + p_reward_credit_used_amount + p_credit_used_amount > p_subtotal_amount then
+    raise exception 'Rewards and credits exceed the purchase amount';
   end if;
 
-  v_amount_paid := p_subtotal_amount - v_reward_discount - p_credit_used_amount;
-  v_loyalty_amount := p_subtotal_amount - v_reward_discount;
+  v_amount_paid := p_subtotal_amount - v_reward_discount - p_reward_credit_used_amount - p_credit_used_amount;
+  v_loyalty_amount := p_subtotal_amount - v_reward_discount - p_reward_credit_used_amount;
   v_reference := 'SW8-' || to_char(clock_timestamp(), 'YYMMDD') || '-' ||
     upper(substr(replace(v_purchase_id::text, '-', ''), 1, 8));
 
@@ -89,6 +125,7 @@ begin
     reference,
     subtotal_amount,
     reward_discount_amount,
+    reward_credit_used_amount,
     credit_used_amount,
     amount_paid,
     loyalty_eligible_amount,
@@ -100,6 +137,7 @@ begin
     v_reference,
     p_subtotal_amount,
     v_reward_discount,
+    p_reward_credit_used_amount,
     p_credit_used_amount,
     v_amount_paid,
     v_loyalty_amount,
@@ -112,6 +150,15 @@ begin
     ) values (
       p_customer_id, v_purchase_id, v_admin_id, 'redemption', p_credit_used_amount,
       'Customer credit used on purchase ' || v_reference
+    );
+  end if;
+
+  if p_reward_credit_used_amount > 0 then
+    insert into public.reward_credit_transactions (
+      customer_id, purchase_id, recorded_by, transaction_type, amount, description
+    ) values (
+      p_customer_id, v_purchase_id, v_admin_id, 'redemption', p_reward_credit_used_amount,
+      'Reward balance used on purchase ' || v_reference
     );
   end if;
 
@@ -134,6 +181,15 @@ begin
         redeemed_purchase_id = v_purchase_id,
         redeemed_by = v_admin_id
     where id = p_reward_id;
+
+    if v_reward_remainder > 0 then
+      insert into public.reward_credit_transactions (
+        customer_id, purchase_id, reward_id, recorded_by, transaction_type, amount, description
+      ) values (
+        p_customer_id, v_purchase_id, p_reward_id, v_admin_id, 'reward_remainder', v_reward_remainder,
+        'Unused balance from redeemed reward on purchase ' || v_reference
+      );
+    end if;
 
     if v_reward.source_loyalty_cycle_id is not null then
       update public.loyalty_cycles
@@ -257,18 +313,21 @@ begin
       'subtotal_amount', p_subtotal_amount,
       'credit_used_amount', p_credit_used_amount,
       'change_left_amount', p_change_left_amount,
-      'reward_discount_amount', v_reward_discount
+      'reward_discount_amount', v_reward_discount,
+      'reward_remainder_amount', v_reward_remainder,
+      'reward_credit_used_amount', p_reward_credit_used_amount
     )
   );
 
   return jsonb_build_object(
     'purchase_id', v_purchase_id,
     'reference', v_reference,
+    'reward_remainder_amount', v_reward_remainder,
     'loyalty_reward_unlocked', v_loyalty_reward_unlocked,
     'referral_reward_unlocked', v_referral_reward_unlocked
   );
 end;
 $$;
 
-revoke all on function public.record_customer_purchase(uuid, bigint, bigint, bigint, uuid, text) from public;
-grant execute on function public.record_customer_purchase(uuid, bigint, bigint, bigint, uuid, text) to authenticated;
+revoke all on function public.record_customer_purchase(uuid, bigint, bigint, bigint, uuid, bigint, bigint, text) from public;
+grant execute on function public.record_customer_purchase(uuid, bigint, bigint, bigint, uuid, bigint, bigint, text) to authenticated;

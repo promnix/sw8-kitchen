@@ -34,7 +34,7 @@ export default async function CustomerProfilePage({
 
   if (!customer) notFound();
 
-  const [purchasesResult, creditsResult, cycleResult, rewardsResult, referralsResult] =
+  const [purchasesResult, creditsResult, rewardCreditsResult, cycleResult, rewardsResult, referralsResult] =
     await Promise.all([
       supabase
         .from("purchases")
@@ -43,6 +43,10 @@ export default async function CustomerProfilePage({
         .order("purchased_at", { ascending: false }),
       supabase
         .from("credit_transactions")
+        .select("amount, transaction_type")
+        .eq("customer_id", id),
+      supabase
+        .from("reward_credit_transactions")
         .select("amount, transaction_type")
         .eq("customer_id", id),
       supabase
@@ -66,6 +70,7 @@ export default async function CustomerProfilePage({
 
   const purchases = purchasesResult.data ?? [];
   const credits = creditsResult.data ?? [];
+  const rewardCredits = rewardCreditsResult.data ?? [];
   const cycle = cycleResult.data;
   const rewards = rewardsResult.data ?? [];
   const referrals = referralsResult.data ?? [];
@@ -86,6 +91,12 @@ export default async function CustomerProfilePage({
   const creditBalance = credits.reduce((total, transaction) => {
     const increase =
       transaction.transaction_type === "deposit" ||
+      transaction.transaction_type === "adjustment_increase";
+    return total + (increase ? transaction.amount : -transaction.amount);
+  }, 0);
+  const rewardCreditBalance = rewardCredits.reduce((total, transaction) => {
+    const increase =
+      transaction.transaction_type === "reward_remainder" ||
       transaction.transaction_type === "adjustment_increase";
     return total + (increase ? transaction.amount : -transaction.amount);
   }, 0);
@@ -157,9 +168,10 @@ export default async function CustomerProfilePage({
           </p>
         ) : null}
 
-        <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Customer summary">
+        <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-5" aria-label="Customer summary">
           <Summary label="Total purchases" value={naira(totalSpent)} note={`${purchases.length} records`} color="border-black" />
-          <Summary label="Available credit" value={naira(creditBalance)} note="Change left behind" color="border-[#ffb132]" />
+          <Summary label="Cash balance" value={naira(creditBalance)} note="Refundable change left" color="border-[#ffb132]" />
+          <Summary label="Reward balance" value={naira(rewardCreditBalance)} note="Purchases only, not cash" color="border-[#008d44]" />
           <Summary label="Available rewards" value={String(rewards.filter((reward) => reward.status === "available").length)} note="Ready for redemption" color="border-[#008d44]" />
           <Summary label="Customers referred" value={String(referrals.length)} note={`${referrals.filter((referral) => referral.status === "rewarded").length} rewarded`} color="border-[#ff4800]" />
         </section>

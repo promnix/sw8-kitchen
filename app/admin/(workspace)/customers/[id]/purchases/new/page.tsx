@@ -9,7 +9,7 @@ export default async function NewPurchasePage({
 }: PageProps<"/admin/customers/[id]/purchases/new">) {
   const { id } = await params;
   const supabase = await createClient();
-  const [customerResult, creditsResult, rewardsResult] = await Promise.all([
+  const [customerResult, creditsResult, rewardCreditsResult, rewardsResult] = await Promise.all([
     supabase
       .from("customers")
       .select("first_name, surname, phone, status")
@@ -17,6 +17,10 @@ export default async function NewPurchasePage({
       .maybeSingle(),
     supabase
       .from("credit_transactions")
+      .select("amount, transaction_type")
+      .eq("customer_id", id),
+    supabase
+      .from("reward_credit_transactions")
       .select("amount, transaction_type")
       .eq("customer_id", id),
     supabase
@@ -33,6 +37,12 @@ export default async function NewPurchasePage({
   const creditBalance = (creditsResult.data ?? []).reduce((total, transaction) => {
     const increase =
       transaction.transaction_type === "deposit" ||
+      transaction.transaction_type === "adjustment_increase";
+    return total + (increase ? transaction.amount : -transaction.amount);
+  }, 0);
+  const rewardCreditBalance = (rewardCreditsResult.data ?? []).reduce((total, transaction) => {
+    const increase =
+      transaction.transaction_type === "reward_remainder" ||
       transaction.transaction_type === "adjustment_increase";
     return total + (increase ? transaction.amount : -transaction.amount);
   }, 0);
@@ -57,7 +67,12 @@ export default async function NewPurchasePage({
           <p className="mt-2 text-sm text-[#686864]">{customer.phone}</p>
         </div>
         <div className="mt-7">
-          <PurchaseForm customerId={id} creditBalance={creditBalance} rewards={rewards} />
+          <PurchaseForm
+            customerId={id}
+            creditBalance={creditBalance}
+            rewardCreditBalance={rewardCreditBalance}
+            rewards={rewards}
+          />
         </div>
       </div>
     </main>

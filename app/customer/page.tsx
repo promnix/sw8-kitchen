@@ -33,7 +33,7 @@ export default async function CustomerPage() {
 
   if (!customer) redirect("/");
 
-  const [purchasesResult, creditsResult, cycleResult, rewardsResult, referralsResult] =
+  const [purchasesResult, creditsResult, rewardCreditsResult, cycleResult, rewardsResult, referralsResult] =
     await Promise.all([
       supabase
         .from("purchases")
@@ -43,6 +43,10 @@ export default async function CustomerPage() {
         .order("purchased_at", { ascending: false }),
       supabase
         .from("credit_transactions")
+        .select("amount, transaction_type")
+        .eq("customer_id", customer.id),
+      supabase
+        .from("reward_credit_transactions")
         .select("amount, transaction_type")
         .eq("customer_id", customer.id),
       supabase
@@ -66,6 +70,7 @@ export default async function CustomerPage() {
 
   const purchases = purchasesResult.data ?? [];
   const credits = creditsResult.data ?? [];
+  const rewardCredits = rewardCreditsResult.data ?? [];
   const cycle = cycleResult.data;
   const rewards = rewardsResult.data ?? [];
   const referrals = referralsResult.data ?? [];
@@ -73,6 +78,12 @@ export default async function CustomerPage() {
   const creditBalance = credits.reduce((total, transaction) => {
     const increase =
       transaction.transaction_type === "deposit" ||
+      transaction.transaction_type === "adjustment_increase";
+    return total + (increase ? transaction.amount : -transaction.amount);
+  }, 0);
+  const rewardCreditBalance = rewardCredits.reduce((total, transaction) => {
+    const increase =
+      transaction.transaction_type === "reward_remainder" ||
       transaction.transaction_type === "adjustment_increase";
     return total + (increase ? transaction.amount : -transaction.amount);
   }, 0);
@@ -147,9 +158,10 @@ export default async function CustomerPage() {
           </div>
         </section>
 
-        <section className="mt-6 grid gap-4 sm:grid-cols-3" aria-label="Account summary">
+        <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="Account summary">
           <Summary icon={<ReceiptText className="size-5" />} label="Purchase progress" value={naira(cycle?.accumulated_amount ?? 0)} note="Current reward journey" color="border-[#ff4800]" />
-          <Summary icon={<WalletCards className="size-5" />} label="Available credit" value={naira(creditBalance)} note="Change left with SW8 Kitchen" color="border-[#ffb132]" />
+          <Summary icon={<WalletCards className="size-5" />} label="Cash balance" value={naira(creditBalance)} note="Refundable change left" color="border-[#ffb132]" />
+          <Summary icon={<Sparkles className="size-5" />} label="Reward balance" value={naira(rewardCreditBalance)} note="For purchases only" color="border-black" />
           <Summary icon={<Gift className="size-5" />} label="Available rewards" value={String(availableRewards.length)} note="Ready for your next purchase" color="border-[#008d44]" />
         </section>
 

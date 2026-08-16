@@ -12,9 +12,10 @@ export async function GET() {
     .maybeSingle();
   if (!customer) return NextResponse.json({ error: "Customer profile not found." }, { status: 404 });
 
-  const [purchasesResult, creditsResult, cycleResult, rewardsResult, referralsResult] = await Promise.all([
+  const [purchasesResult, creditsResult, rewardCreditsResult, cycleResult, rewardsResult, referralsResult] = await Promise.all([
     supabase.from("purchases").select("id, reference, subtotal_amount, reward_discount_amount, purchased_at").eq("customer_id", user.id).eq("status", "completed").order("purchased_at", { ascending: false }).limit(20),
     supabase.from("credit_transactions").select("amount, transaction_type").eq("customer_id", user.id),
+    supabase.from("reward_credit_transactions").select("amount, transaction_type").eq("customer_id", user.id),
     supabase.from("loyalty_cycles").select("cycle_number, accumulated_amount, status").eq("customer_id", user.id).order("cycle_number", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("rewards").select("id, reward_type, status, maximum_value, unlocked_at, redeemed_at").eq("customer_id", user.id).order("unlocked_at", { ascending: false }),
     supabase.from("referrals").select("id, status, created_at").eq("referrer_customer_id", user.id).order("created_at", { ascending: false }),
@@ -22,6 +23,10 @@ export async function GET() {
 
   const creditBalance = (creditsResult.data ?? []).reduce((total, transaction) => {
     const increase = transaction.transaction_type === "deposit" || transaction.transaction_type === "adjustment_increase";
+    return total + (increase ? transaction.amount : -transaction.amount);
+  }, 0);
+  const rewardCreditBalance = (rewardCreditsResult.data ?? []).reduce((total, transaction) => {
+    const increase = transaction.transaction_type === "reward_remainder" || transaction.transaction_type === "adjustment_increase";
     return total + (increase ? transaction.amount : -transaction.amount);
   }, 0);
   const rewards = rewardsResult.data ?? [];
@@ -33,6 +38,7 @@ export async function GET() {
       purchaseProgress: cycleResult.data?.accumulated_amount ?? 0,
       cycleStatus: cycleResult.data?.status ?? null,
       creditBalance,
+      rewardCreditBalance,
       availableRewards: rewards.filter((reward) => reward.status === "available"),
       rewardHistory: rewards,
       referralCount: referrals.length,

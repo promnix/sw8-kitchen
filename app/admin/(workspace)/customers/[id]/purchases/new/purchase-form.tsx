@@ -12,10 +12,12 @@ type RewardOption = {
 export function PurchaseForm({
   customerId,
   creditBalance,
+  rewardCreditBalance,
   rewards,
 }: {
   customerId: string;
   creditBalance: number;
+  rewardCreditBalance: number;
   rewards: RewardOption[];
 }) {
   const action = recordPurchase.bind(null, customerId);
@@ -24,17 +26,27 @@ export function PurchaseForm({
   });
   const [subtotal, setSubtotal] = useState("");
   const [creditUsed, setCreditUsed] = useState("0");
+  const [rewardCreditUsed, setRewardCreditUsed] = useState("0");
   const [changeLeft, setChangeLeft] = useState("0");
   const [rewardId, setRewardId] = useState("");
+  const [rewardUsed, setRewardUsed] = useState("0");
   const [notes, setNotes] = useState("");
 
   const selectedReward = rewards.find((reward) => reward.id === rewardId);
   const calculation = useMemo(() => {
     const subtotalKobo = Math.max(0, Number(subtotal.replace(/,/g, "")) || 0) * 100;
     const creditKobo = Math.max(0, Number(creditUsed.replace(/,/g, "")) || 0) * 100;
-    const rewardDiscount = Math.min(selectedReward?.maximumValue ?? 0, subtotalKobo);
-    return Math.max(0, subtotalKobo - rewardDiscount - creditKobo);
-  }, [creditUsed, selectedReward, subtotal]);
+    const rewardCreditKobo = Math.max(0, Number(rewardCreditUsed.replace(/,/g, "")) || 0) * 100;
+    const rewardKobo = Math.max(0, Number(rewardUsed.replace(/,/g, "")) || 0) * 100;
+    const rewardDiscount = Math.min(selectedReward?.maximumValue ?? 0, rewardKobo);
+    return {
+      rewardDiscount,
+      rewardRemainder: Math.max(0, (selectedReward?.maximumValue ?? 0) - rewardDiscount),
+      rewardCreditKobo,
+      creditKobo,
+      amountPaid: Math.max(0, subtotalKobo - rewardDiscount - rewardCreditKobo - creditKobo),
+    };
+  }, [creditUsed, rewardCreditUsed, rewardUsed, selectedReward, subtotal]);
 
   return (
     <form action={formAction} className="space-y-7">
@@ -45,11 +57,18 @@ export function PurchaseForm({
         <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
           <MoneyField label="Purchase total" name="subtotal" value={subtotal} onChange={setSubtotal} required />
           <MoneyField
-            label="Customer credit used"
+            label="Cash credit used"
             name="creditUsed"
             value={creditUsed}
             onChange={setCreditUsed}
             note={`Available: ${formatNaira(creditBalance)}`}
+          />
+          <MoneyField
+            label="Reward balance used"
+            name="rewardCreditUsed"
+            value={rewardCreditUsed}
+            onChange={setRewardCreditUsed}
+            note={`Purchase-only balance: ${formatNaira(rewardCreditBalance)}`}
           />
           <MoneyField
             label="Change left behind"
@@ -63,7 +82,12 @@ export function PurchaseForm({
             <select
               name="rewardId"
               value={rewardId}
-              onChange={(event) => setRewardId(event.target.value)}
+              onChange={(event) => {
+                const nextRewardId = event.target.value;
+                const nextReward = rewards.find((reward) => reward.id === nextRewardId);
+                setRewardId(nextRewardId);
+                setRewardUsed(nextReward ? String(nextReward.maximumValue / 100) : "0");
+              }}
               className="h-12 w-full border border-[#c9c9c3] bg-white px-4 text-base text-black outline-none focus:border-[#ff4800] focus:ring-2 focus:ring-[#ff4800]/15"
             >
               <option value="">No reward</option>
@@ -74,6 +98,13 @@ export function PurchaseForm({
               ))}
             </select>
           </label>
+          <MoneyField
+            label="Reward amount to use"
+            name="rewardUsed"
+            value={rewardUsed}
+            onChange={setRewardUsed}
+            note={selectedReward ? `Available: ${formatNaira(selectedReward.maximumValue)}. Unused value becomes reward balance.` : "Select a reward first"}
+          />
           <label className="sm:col-span-2">
             <span className="mb-2 block text-sm font-medium text-[#282825]">Notes</span>
             <textarea
@@ -93,8 +124,18 @@ export function PurchaseForm({
             <p className="text-sm font-medium text-[#686864]">Amount customer pays</p>
             <p className="mt-1 text-xs text-[#8a8a84]">After selected reward and customer credit</p>
           </div>
-          <p className="text-2xl font-semibold text-black">{formatNaira(calculation)}</p>
+          <p className="text-2xl font-semibold text-black">{formatNaira(calculation.amountPaid)}</p>
         </div>
+        <div className="mt-4 grid gap-2 border-t border-[#e5e5e0] pt-4 text-xs text-[#686864] sm:grid-cols-3">
+          <p>Reward applied: <strong className="text-black">{formatNaira(calculation.rewardDiscount)}</strong></p>
+          <p>Reward balance used: <strong className="text-black">{formatNaira(calculation.rewardCreditKobo)}</strong></p>
+          <p>Cash credit used: <strong className="text-black">{formatNaira(calculation.creditKobo)}</strong></p>
+        </div>
+        {calculation.rewardRemainder > 0 ? (
+          <p className="mt-3 text-xs font-medium text-[#008d44]">
+            {formatNaira(calculation.rewardRemainder)} will move to the customer&apos;s purchase-only reward balance.
+          </p>
+        ) : null}
       </section>
 
       {state.error ? (
