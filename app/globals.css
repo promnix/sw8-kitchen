@@ -60,6 +60,11 @@ button {
   border-radius: 6px;
 }
 
+[data-app-shell="admin"] main table span[class*="bg-"],
+[data-app-shell="admin"] main [role="status"] {
+  border-radius: 6px;
+}
+
 .gift-dangle {
   transform-origin: top center;
   animation: gift-dangle 2.8s ease-in-out infinite;

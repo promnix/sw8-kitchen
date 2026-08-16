@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { AdminPageHeader } from "../admin-page-header";
 
 function fullName(customer: {
   first_name: string;
@@ -34,19 +35,18 @@ export default async function CustomersPage({
   return (
     <main className="px-5 py-7 sm:px-7 sm:py-9 xl:px-10">
       <div className="mx-auto max-w-[1280px]">
-        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-sm font-semibold text-[#ff4800]">Customers</p>
-            <h1 className="mt-1 text-2xl font-semibold sm:text-3xl">Customer directory</h1>
-            <p className="mt-2 text-sm text-[#686864]">Search and manage customer accounts.</p>
-          </div>
-          <Link
+        <AdminPageHeader
+          eyebrow="Customers"
+          title="Customer directory"
+          description="Search and manage customer accounts."
+          showDate={false}
+          action={<Link
             href="/admin/customers/new"
-            className="inline-flex h-11 items-center justify-center bg-[#ff4800] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#df3e00]"
+            className="inline-flex h-11 items-center justify-center rounded-md bg-[#ff4800] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#df3e00]"
           >
             Add customer
-          </Link>
-        </div>
+          </Link>}
+        />
 
         {created === "1" ? (
           <p role="status" className="mt-6 border-l-4 border-[#008d44] bg-[#e9f7ef] px-4 py-3 text-sm text-[#006b34]">
@@ -54,7 +54,7 @@ export default async function CustomersPage({
           </p>
         ) : null}
 
-        <section className="mt-7 border border-[#deded9] bg-white">
+        <section className="mt-7 overflow-hidden rounded-lg border border-[#deded9] bg-white">
           <form className="border-b border-[#e5e5e0] p-4 sm:p-5">
             <label className="block max-w-md">
               <span className="sr-only">Search customers</span>
@@ -63,7 +63,7 @@ export default async function CustomersPage({
                 name="query"
                 defaultValue={search}
                 placeholder="Search by name, phone number, or referral code"
-                className="h-11 w-full border border-[#c9c9c3] bg-white px-4 text-sm text-black outline-none transition placeholder:text-[#92928c] focus:border-[#ff4800] focus:ring-2 focus:ring-[#ff4800]/15"
+                className="h-11 w-full rounded-md border border-[#c9c9c3] bg-white px-4 text-sm text-black outline-none transition placeholder:text-[#92928c] focus:border-[#ff4800] focus:ring-2 focus:ring-[#ff4800]/15"
               />
             </label>
           </form>
@@ -98,13 +98,13 @@ export default async function CustomersPage({
                       </td>
                       <td className="px-4 py-4 text-sm text-[#454541]">{customer.phone}</td>
                       <td className="px-4 py-4">
-                        <span className="bg-[#fff0e9] px-2.5 py-1 font-mono text-xs font-semibold text-[#b83500]">
+                        <span className="rounded-md bg-[#fff0e9] px-2.5 py-1 font-mono text-xs font-semibold text-[#b83500]">
                           {customer.referral_code}
                         </span>
                       </td>
                       <td className="px-4 py-4 text-sm text-[#686864]">{customer.email ?? "-"}</td>
                       <td className="px-6 py-4 text-right">
-                        <span className="bg-[#e9f7ef] px-2.5 py-1 text-xs font-semibold capitalize text-[#006b34]">
+                        <span className="rounded-md bg-[#e9f7ef] px-2.5 py-1 text-xs font-semibold capitalize text-[#006b34]">
                           {customer.status}
                         </span>
                       </td>
