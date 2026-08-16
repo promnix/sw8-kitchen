@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { sendNotifications } from "@/lib/email/send-notifications";
 import { createClient } from "@/lib/supabase/server";
 
 export type RecordPurchaseState = { error: string };
@@ -32,7 +33,7 @@ export async function recordPurchase(
   if (rewardUsed === null) return { error: "Enter a valid reward amount." };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("record_customer_purchase", {
+  const { data, error } = await supabase.rpc("record_customer_purchase", {
     p_customer_id: customerId,
     p_subtotal_amount: subtotal,
     p_credit_used_amount: creditUsed,
@@ -50,7 +51,18 @@ export async function recordPurchase(
     return { error: error.message };
   }
 
+  const purchaseResult = data as { unlocked_reward_ids?: string[] } | null;
+  const unlockedRewardIds = purchaseResult?.unlocked_reward_ids ?? [];
+  if (unlockedRewardIds.length > 0) {
+    await sendNotifications({
+      supabase,
+      statuses: ["pending"],
+      rewardIds: unlockedRewardIds,
+    });
+  }
+
   revalidatePath(`/admin/customers/${customerId}`);
+  revalidatePath("/admin/notifications");
   revalidatePath("/admin/dashboard");
   redirect(`/admin/customers/${customerId}?purchase=created`);
 }

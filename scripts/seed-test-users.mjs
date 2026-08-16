@@ -14,7 +14,7 @@ const supabase = createClient(url, serviceRoleKey, {
 });
 
 const adminCredentials = {
-  email: "sw8kitchen@gmail.com",
+  email: "promiseedwin242@gmail.com",
   password: "Admin@12345",
 };
 
@@ -95,7 +95,7 @@ const { error: customerError } = await supabase.from("customers").upsert(
     surname: customerCredentials.surname,
     other_names: "Customer",
     address: "12 Test Street, Lagos",
-    email: "customer@sw8kitchen.test",
+    email: "promnix10@gmail.com",
     referral_code: customerCredentials.referralCode,
     status: "active",
     created_by: adminUser.id,

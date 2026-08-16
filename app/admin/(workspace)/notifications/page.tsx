@@ -45,13 +45,17 @@ export default function NotificationsPage() {
     };
   }, []);
 
-  async function sendPending() {
+  async function retryFailed() {
     setSending(true);
     setMessage("");
     const response = await fetch("/api/admin/notifications/send", { method: "POST" });
     const result = await response.json();
     if (response.ok) {
-      setMessage(`${result.data.sent} sent, ${result.data.failed} failed, ${result.data.skipped} skipped.`);
+      setMessage(
+        result.data.processed === 0
+          ? "No failed emails were available to retry."
+          : `${result.data.sent} resent, ${result.data.failed} still failed.`,
+      );
       await loadNotifications();
     } else {
       setMessage(result.error ?? "Unable to send notifications.");
@@ -65,15 +69,15 @@ export default function NotificationsPage() {
         <AdminPageHeader
           eyebrow="Notifications"
           title="Email delivery"
-          description="Review and send queued reward emails."
+          description="Reward emails send automatically. Review delivery results and retry failures."
           showDate={false}
           action={<button
             type="button"
-            onClick={sendPending}
-            disabled={sending}
+            onClick={retryFailed}
+            disabled={sending || !notifications.some((notification) => notification.status === "failed")}
             className="h-11 rounded-md bg-[#ff4800] px-5 text-sm font-semibold text-white transition-colors hover:bg-[#df3e00] disabled:bg-[#bd5f39]"
           >
-            {sending ? "Sending..." : "Send pending emails"}
+            {sending ? "Retrying..." : "Retry failed emails"}
           </button>}
         />
 

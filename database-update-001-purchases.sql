@@ -33,6 +33,7 @@ declare
   v_referral public.referrals%rowtype;
   v_new_total bigint;
   v_new_reward_id uuid;
+  v_unlocked_reward_ids uuid[] := array[]::uuid[];
   v_loyalty_reward_unlocked boolean := false;
   v_referral_reward_unlocked boolean := false;
 begin
@@ -230,6 +231,8 @@ begin
         'Meal of the customer''s choice worth up to NGN 5,000'
       ) returning id into v_new_reward_id;
 
+      v_unlocked_reward_ids := array_append(v_unlocked_reward_ids, v_new_reward_id);
+
       v_loyalty_reward_unlocked := true;
 
       insert into public.notifications (
@@ -279,6 +282,8 @@ begin
         'Complimentary side worth up to NGN 1,000'
       ) returning id into v_new_reward_id;
 
+      v_unlocked_reward_ids := array_append(v_unlocked_reward_ids, v_new_reward_id);
+
       v_referral_reward_unlocked := true;
 
       insert into public.notifications (
@@ -323,6 +328,7 @@ begin
     'purchase_id', v_purchase_id,
     'reference', v_reference,
     'reward_remainder_amount', v_reward_remainder,
+    'unlocked_reward_ids', to_jsonb(v_unlocked_reward_ids),
     'loyalty_reward_unlocked', v_loyalty_reward_unlocked,
     'referral_reward_unlocked', v_referral_reward_unlocked
   );
