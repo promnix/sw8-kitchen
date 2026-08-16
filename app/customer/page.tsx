@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 import { Gift, Sparkles, WalletCards } from "lucide-react";
 import { signOut } from "../actions/auth";
@@ -131,7 +132,9 @@ export default async function CustomerPage({ searchParams }: PageProps<"/custome
       <header className="fixed inset-x-0 top-0 z-40 border-b border-[#deded9] bg-white">
         <div className="mx-auto flex h-16 max-w-[1120px] items-center justify-between px-5 sm:h-20 sm:px-7">
           <div className="flex items-center gap-3">
-            <span className="grid size-9 place-items-center bg-[#ff4800] text-xs font-bold text-white">SW8</span>
+            <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-md bg-black p-1 shadow-sm">
+              <Image src="/brand/sw8-logo.png" alt="SW8 Kitchen" width={40} height={30} className="h-auto w-full" priority />
+            </span>
             <div>
               <p className="text-sm font-semibold">SW8 Kitchen</p>
               <p className="mt-0.5 text-xs text-[#777771]">Customer account</p>

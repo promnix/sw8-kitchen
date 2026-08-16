@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -101,7 +102,9 @@ export function MobileAdminNav() {
           >
             <div className="flex h-20 items-center justify-between border-b border-white/15 px-5">
               <div className="flex items-center gap-3">
-                <span className="grid size-9 place-items-center bg-[#ff4800] text-xs font-bold">SW8</span>
+                <span className="grid size-10 shrink-0 place-items-center overflow-hidden rounded-md bg-white p-1">
+                  <Image src="/brand/sw8-logo.png" alt="SW8 Kitchen" width={40} height={30} className="h-auto w-full" />
+                </span>
                 <div>
                   <p className="text-sm font-semibold">SW8 Kitchen</p>
                   <p className="mt-0.5 text-xs text-white/50">Admin portal</p>

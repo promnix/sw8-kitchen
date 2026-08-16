@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { SignInForm } from "./sign-in-form";
 
 export default function Home() {
@@ -5,8 +6,8 @@ export default function Home() {
     <main className="min-h-screen bg-[#f7f7f5] lg:grid lg:grid-cols-[minmax(320px,0.82fr)_1.18fr]">
       <section className="flex min-h-[250px] flex-col justify-between bg-[#ff4800] px-6 py-7 text-white sm:px-10 sm:py-9 lg:min-h-screen lg:px-14 lg:py-12">
         <div className="flex items-center gap-3">
-          <div className="grid size-10 place-items-center border-2 border-white bg-black text-sm font-bold">
-            SW8
+          <div className="grid size-12 shrink-0 place-items-center overflow-hidden rounded-md bg-white p-1">
+            <Image src="/brand/sw8-logo.png" alt="SW8 Kitchen" width={48} height={60} className="h-auto w-full" priority />
           </div>
           <div>
             <p className="text-lg font-semibold leading-none">SW8 Kitchen</p>
