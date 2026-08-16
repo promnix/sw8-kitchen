@@ -12,6 +12,12 @@ create type public.credit_transaction_type as enum (
   'adjustment_increase',
   'adjustment_decrease'
 );
+create type public.reward_credit_transaction_type as enum (
+  'reward_remainder',
+  'redemption',
+  'adjustment_increase',
+  'adjustment_decrease'
+);
 create type public.loyalty_cycle_status as enum (
   'progressing',
   'reward_unlocked',
@@ -60,6 +66,7 @@ create table public.purchases (
   reference varchar(50) not null unique,
   subtotal_amount bigint not null check (subtotal_amount >= 0),
   reward_discount_amount bigint not null default 0 check (reward_discount_amount >= 0),
+  reward_credit_used_amount bigint not null default 0 check (reward_credit_used_amount >= 0),
   credit_used_amount bigint not null default 0 check (credit_used_amount >= 0),
   amount_paid bigint not null check (amount_paid >= 0),
   loyalty_eligible_amount bigint not null check (loyalty_eligible_amount >= 0),
@@ -68,7 +75,13 @@ create table public.purchases (
   notes text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  check (reward_discount_amount + credit_used_amount + amount_paid = subtotal_amount),
+  check (
+    reward_discount_amount
+    + reward_credit_used_amount
+    + credit_used_amount
+    + amount_paid
+    = subtotal_amount
+  ),
   check (loyalty_eligible_amount <= subtotal_amount)
 );
 
@@ -149,6 +162,24 @@ create table public.purchase_reward_redemptions (
   created_at timestamptz not null default now()
 );
 
+-- This ledger stores promotional value that can only be used for purchases.
+-- Unlike credit_transactions, this balance must never be paid out as cash.
+create table public.reward_credit_transactions (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid not null references public.customers(id),
+  purchase_id uuid references public.purchases(id),
+  reward_id uuid references public.rewards(id),
+  recorded_by uuid not null references public.admin_profiles(id),
+  transaction_type public.reward_credit_transaction_type not null,
+  amount bigint not null check (amount > 0),
+  description varchar(255),
+  created_at timestamptz not null default now(),
+  check (
+    transaction_type <> 'reward_remainder'
+    or reward_id is not null
+  )
+);
+
 -- This is an email outbox. An Edge Function or trusted server job sends pending messages.
 create table public.notifications (
   id uuid primary key default gen_random_uuid(),
@@ -184,6 +215,8 @@ create index loyalty_cycles_customer_status_idx on public.loyalty_cycles (custom
 create index referrals_referrer_status_idx on public.referrals (referrer_customer_id, status);
 create index rewards_customer_status_idx on public.rewards (customer_id, status);
 create index purchase_reward_redemptions_purchase_idx on public.purchase_reward_redemptions (purchase_id);
+create index reward_credit_transactions_customer_created_at_idx on public.reward_credit_transactions (customer_id, created_at desc);
+create index reward_credit_transactions_reward_idx on public.reward_credit_transactions (reward_id) where reward_id is not null;
 create index notifications_status_idx on public.notifications (status);
 create index admin_audit_logs_entity_idx on public.admin_audit_logs (entity_type, entity_id);
 
@@ -251,6 +284,7 @@ alter table public.loyalty_cycles enable row level security;
 alter table public.referrals enable row level security;
 alter table public.rewards enable row level security;
 alter table public.purchase_reward_redemptions enable row level security;
+alter table public.reward_credit_transactions enable row level security;
 alter table public.notifications enable row level security;
 alter table public.admin_audit_logs enable row level security;
 
@@ -322,6 +356,14 @@ using (
 
 create policy "Admins can manage reward redemptions"
 on public.purchase_reward_redemptions for all to authenticated
+using (public.is_admin()) with check (public.is_admin());
+
+create policy "Customers can view their own reward credit ledger"
+on public.reward_credit_transactions for select to authenticated
+using (customer_id = auth.uid() or public.is_admin());
+
+create policy "Admins can manage reward credit transactions"
+on public.reward_credit_transactions for all to authenticated
 using (public.is_admin()) with check (public.is_admin());
 
 create policy "Customers can view their own notifications"
