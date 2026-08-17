@@ -57,18 +57,11 @@ export function PurchaseForm({
         <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
           <MoneyField label="Purchase total" name="subtotal" value={subtotal} onChange={setSubtotal} required />
           <MoneyField
-            label="Cash credit used"
+            label="Amount from change-left-behind balance to use"
             name="creditUsed"
             value={creditUsed}
             onChange={setCreditUsed}
-            note={`Available: ${formatNaira(creditBalance)}`}
-          />
-          <MoneyField
-            label="Reward balance used"
-            name="rewardCreditUsed"
-            value={rewardCreditUsed}
-            onChange={setRewardCreditUsed}
-            note={`Purchase-only balance: ${formatNaira(rewardCreditBalance)}`}
+            note={`Refundable balance available: ${formatNaira(creditBalance)}`}
           />
           <MoneyField
             label="Change left behind"
@@ -105,6 +98,13 @@ export function PurchaseForm({
             onChange={setRewardUsed}
             note={selectedReward ? `Available: ${formatNaira(selectedReward.maximumValue)}. Unused value becomes reward balance.` : "Select a reward first"}
           />
+          <MoneyField
+            label="Amount from reward balance to use"
+            name="rewardCreditUsed"
+            value={rewardCreditUsed}
+            onChange={setRewardCreditUsed}
+            note={`Purchase-only balance available: ${formatNaira(rewardCreditBalance)}`}
+          />
           <label className="sm:col-span-2">
             <span className="mb-2 block text-sm font-medium text-[#282825]">Notes</span>
             <textarea
@@ -128,8 +128,8 @@ export function PurchaseForm({
         </div>
         <div className="mt-4 grid gap-2 border-t border-[#e5e5e0] pt-4 text-xs text-[#686864] sm:grid-cols-3">
           <p>Reward applied: <strong className="text-black">{formatNaira(calculation.rewardDiscount)}</strong></p>
-          <p>Reward balance used: <strong className="text-black">{formatNaira(calculation.rewardCreditKobo)}</strong></p>
-          <p>Cash credit used: <strong className="text-black">{formatNaira(calculation.creditKobo)}</strong></p>
+          <p>From reward balance: <strong className="text-black">{formatNaira(calculation.rewardCreditKobo)}</strong></p>
+          <p>From change-left-behind balance: <strong className="text-black">{formatNaira(calculation.creditKobo)}</strong></p>
         </div>
         {calculation.rewardRemainder > 0 ? (
           <p className="mt-3 text-xs font-medium text-[#008d44]">
